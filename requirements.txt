@@ -44,6 +44,7 @@ redis==5.0.1
 fastapi==0.109.0
 uvicorn[standard]==0.25.0
 python-multipart==0.0.6
+slowapi==0.1.9
 
 # ── Web Dashboard (Flask) ────────────────────────────────────────
 Flask>=3.0.0
