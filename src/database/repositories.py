@@ -3,17 +3,27 @@ from datetime import datetime, timezone
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models import Trade, Signal, BotMetrics, TradeStatus, TradeDirection
-from src.database.connection import get_session
+from src.database.connection import get_session, is_db_available
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class TradeRepository:
-    """Data access layer for Trade records."""
+    """Data access layer for Trade records. Gracefully handles DB unavailability."""
 
-    async def create_trade(self, trade_data: dict) -> Trade:
+    async def create_trade(self, trade_data: dict) -> Optional[Trade]:
+        if not is_db_available():
+            logger.debug("DB unavailable - trade not persisted to DB")
+            # Return a mock trade object with an ID
+            trade = Trade(**trade_data)
+            trade.id = id(trade)  # Use object id as fake DB id
+            return trade
         async with get_session() as session:
+            if session is None:
+                trade = Trade(**trade_data)
+                trade.id = id(trade)
+                return trade
             trade = Trade(**trade_data)
             session.add(trade)
             await session.flush()
@@ -22,21 +32,33 @@ class TradeRepository:
             return trade
 
     async def get_trade_by_order_id(self, order_id: str) -> Optional[Trade]:
+        if not is_db_available():
+            return None
         async with get_session() as session:
+            if session is None:
+                return None
             result = await session.execute(
                 select(Trade).where(Trade.order_id == order_id)
             )
             return result.scalar_one_or_none()
 
     async def get_open_trades(self) -> List[Trade]:
+        if not is_db_available():
+            return []
         async with get_session() as session:
+            if session is None:
+                return []
             result = await session.execute(
                 select(Trade).where(Trade.status == TradeStatus.OPEN)
             )
             return list(result.scalars().all())
 
     async def close_trade(self, order_id: str, exit_price: float, pnl: float, pnl_pct: float) -> Optional[Trade]:
+        if not is_db_available():
+            return None
         async with get_session() as session:
+            if session is None:
+                return None
             result = await session.execute(
                 select(Trade).where(Trade.order_id == order_id)
             )
@@ -50,7 +72,11 @@ class TradeRepository:
             return trade
 
     async def get_daily_stats(self) -> dict:
+        if not is_db_available():
+            return {"total_trades": 0, "total_pnl": 0.0, "message": "DB offline"}
         async with get_session() as session:
+            if session is None:
+                return {"total_trades": 0, "total_pnl": 0.0, "message": "DB offline"}
             today = datetime.now(timezone.utc).date()
             result = await session.execute(
                 select(
@@ -85,25 +111,41 @@ class TradeRepository:
 
 
 class SignalRepository:
-    """Data access layer for Signal records."""
+    """Data access layer for Signal records. Gracefully handles DB unavailability."""
 
-    async def create_signal(self, signal_data: dict) -> Signal:
+    async def create_signal(self, signal_data: dict) -> Optional[Signal]:
+        if not is_db_available():
+            return None
         async with get_session() as session:
-            signal = Signal(**signal_data)
-            session.add(signal)
-            await session.flush()
-            await session.refresh(signal)
-            return signal
+            if session is None:
+                return None
+            try:
+                signal = Signal(**signal_data)
+                session.add(signal)
+                await session.flush()
+                await session.refresh(signal)
+                return signal
+            except Exception as e:
+                logger.debug(f"Signal DB log failed: {e}")
+                return None
 
     async def get_recent_signals(self, limit: int = 20) -> List[Signal]:
+        if not is_db_available():
+            return []
         async with get_session() as session:
+            if session is None:
+                return []
             result = await session.execute(
                 select(Signal).order_by(Signal.created_at.desc()).limit(limit)
             )
             return list(result.scalars().all())
 
     async def mark_acted_upon(self, signal_id: int):
+        if not is_db_available():
+            return
         async with get_session() as session:
+            if session is None:
+                return
             await session.execute(
                 update(Signal).where(Signal.id == signal_id).values(acted_upon=True)
             )
@@ -112,8 +154,12 @@ class SignalRepository:
 class MetricsRepository:
     """Data access layer for BotMetrics records."""
 
-    async def record_metrics(self, metrics_data: dict) -> BotMetrics:
+    async def record_metrics(self, metrics_data: dict) -> Optional[BotMetrics]:
+        if not is_db_available():
+            return None
         async with get_session() as session:
+            if session is None:
+                return None
             metric = BotMetrics(**metrics_data)
             session.add(metric)
             await session.flush()
