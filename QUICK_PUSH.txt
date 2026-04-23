@@ -1,0 +1,64 @@
+════════════════════════════════════════════════════════════
+QUANTALPHA - QUICK GITHUB PUSH COMMANDS
+════════════════════════════════════════════════════════════
+
+⚠️ IMPORTANT: Copy and paste these commands ONE BY ONE in PowerShell
+
+────────────────────────────────────────────────────────────
+STEP 1: Initialize Git
+────────────────────────────────────────────────────────────
+git init
+
+────────────────────────────────────────────────────────────
+STEP 2: Add Remote
+────────────────────────────────────────────────────────────
+git remote add origin https://github.com/Mastyogi/QuantAlpha.git
+
+────────────────────────────────────────────────────────────
+STEP 3: Stage All Files
+────────────────────────────────────────────────────────────
+git add .
+
+────────────────────────────────────────────────────────────
+STEP 4: Check Status (VERIFY .env is NOT listed!)
+────────────────────────────────────────────────────────────
+git status
+
+⚠️ IF .env IS LISTED, RUN THIS:
+git rm --cached .env
+git add .gitignore
+
+────────────────────────────────────────────────────────────
+STEP 5: Commit
+────────────────────────────────────────────────────────────
+git commit -m "Initial commit: QuantAlpha Trading Bot"
+
+────────────────────────────────────────────────────────────
+STEP 6: Set Main Branch
+────────────────────────────────────────────────────────────
+git branch -M main
+
+────────────────────────────────────────────────────────────
+STEP 7: Push to GitHub
+────────────────────────────────────────────────────────────
+git push -u origin main
+
+════════════════════════════════════════════════════════════
+✅ DONE! Check: https://github.com/Mastyogi/QuantAlpha
+════════════════════════════════════════════════════════════
+
+If push fails with authentication error:
+1. Go to: https://github.com/settings/tokens
+2. Generate new token (classic)
+3. Select 'repo' scope
+4. Copy token
+5. Use token as password when pushing
+
+If remote already exists error:
+git remote remove origin
+git remote add origin https://github.com/Mastyogi/QuantAlpha.git
+
+If repo already has content:
+git push -u origin main --force
+
+════════════════════════════════════════════════════════════

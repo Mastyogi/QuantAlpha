@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AlphaBot Pro — Live Trading</title>
+
+<!-- Lightweight Charts (TradingView) -->
+<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+
+<style>
+:root {
+  --bg:       #0b0e1a;
+  --panel:    #111827;
+  --border:   #1f2937;
+  --text:     #e5e7eb;
+  --muted:    #6b7280;
+  --green:    #10b981;
+  --red:      #ef4444;
+  --yellow:   #f59e0b;
+  --blue:     #3b82f6;
+  --purple:   #8b5cf6;
+  --accent:   #6366f1;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Top Bar ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; background: var(--panel);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.logo { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+.logo span { color: var(--text); }
+.live-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--green); font-weight: 600;
+}
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+.symbol-bar { display: flex; gap: 6px; }
+.sym-btn {
+  padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer; font-size: 12px;
+  transition: all .15s;
+}
+.sym-btn.active, .sym-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.price-display { text-align: right; }
+.price-main { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.price-change { font-size: 12px; margin-top: 2px; }
+.up { color: var(--green); } .down { color: var(--red); }
+
+/* ── Main Layout ── */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Chart Area ── */
+.chart-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chart-toolbar {
+  display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+  background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.tf-btn {
+  padding: 4px 10px; border-radius: 4px; border: none;
+  background: transparent; color: var(--muted); cursor: pointer; font-size: 12px;
+}
+.tf-btn.active { background: var(--accent); color: #fff; }
+#chart-container { flex: 1; }
+
+/* Signal overlay labels */
+.signal-overlay { position: relative; }
+
+/* ── Right Sidebar ── */
+.sidebar {
+  width: 340px; background: var(--panel); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;
+}
+.sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.stab {
+  flex: 1; padding: 10px; text-align: center; cursor: pointer;
+  font-size: 12px; color: var(--muted); border-bottom: 2px solid transparent;
+  transition: all .15s;
+}
+.stab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.stab-content { display: none; flex: 1; overflow-y: auto; padding: 12px; }
+.stab-content.active { display: block; }
+
+/* ── Signal Card ── */
+.signal-card {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; margin-bottom: 10px; transition: border-color .2s;
+}
+.signal-card.buy { border-left: 3px solid var(--green); }
+.signal-card.sell { border-left: 3px solid var(--red); }
+.sig-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.sig-sym { font-weight: 700; font-size: 14px; }
+.sig-dir { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.sig-dir.buy { background: rgba(16,185,129,.15); color: var(--green); }
+.sig-dir.sell { background: rgba(239,68,68,.15); color: var(--red); }
+.sig-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.score-item { background: var(--panel); border-radius: 6px; padding: 8px; text-align: center; }
+.score-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.score-val { font-size: 18px; font-weight: 700; margin-top: 2px; }
+.score-val.green { color: var(--green); }
+.score-val.yellow { color: var(--yellow); }
+.score-val.red { color: var(--red); }
+.sig-levels { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+.level-item { text-align: center; }
+.level-label { font-size: 9px; color: var(--muted); }
+.level-val { font-size: 12px; font-weight: 600; margin-top: 2px; }
+.rr-bar { margin-top: 10px; }
+.rr-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.rr-track { height: 4px; background: var(--border); border-radius: 2px; }
+.rr-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--green), var(--blue)); transition: width .5s; }
+
+/* ── Confluence Gauge ── */
+.gauge-wrap { text-align: center; padding: 10px 0; }
+.gauge-svg { width: 160px; height: 90px; }
+.gauge-score-text { font-size: 28px; font-weight: 700; fill: var(--text); }
+.gauge-label-text { font-size: 10px; fill: var(--muted); }
+.conf-breakdown { margin-top: 12px; }
+.conf-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.conf-name { font-size: 11px; color: var(--muted); width: 100px; flex-shrink: 0; }
+.conf-track { flex: 1; height: 5px; background: var(--border); border-radius: 3px; }
+.conf-bar-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+.conf-pts { font-size: 11px; color: var(--text); width: 32px; text-align: right; }
+
+/* ── P&L Panel ── */
+.pnl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.pnl-card {
+  background: var(--bg); border-radius: 8px; padding: 12px; text-align: center;
+  border: 1px solid var(--border);
+}
+.pnl-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.pnl-val { font-size: 20px; font-weight: 700; margin-top: 4px; }
+.equity-chart-wrap { height: 120px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 14px; }
+.trades-mini { }
+.trade-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.trade-sym { font-weight: 600; }
+.trade-result { font-weight: 700; }
+
+/* ── Bottom Stats Bar ── */
+.statsbar {
+  display: flex; gap: 0; background: var(--panel);
+  border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.stat-item { flex: 1; padding: 10px 16px; border-right: 1px solid var(--border); }
+.stat-item:last-child { border-right: none; }
+.stat-name { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.stat-val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── Toast ── */
+.toast-wrap { position: fixed; bottom: 80px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+.toast {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 16px; font-size: 12px; min-width: 240px;
+  animation: slideIn .3s ease; box-shadow: 0 4px 20px rgba(0,0,0,.4);
+}
+.toast.buy { border-left: 3px solid var(--green); }
+.toast.sell { border-left: 3px solid var(--red); }
+@keyframes slideIn { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform:translateX(0); } }
+</style>
+</head>
+<body>
+
+<!-- ── Top Bar ──────────────────────────────────────────────────────── -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:20px">
+    <div class="logo">Alpha<span>Bot</span> PRO</div>
+    <div class="live-badge"><span class="live-dot"></span> PAPER TRADING</div>
+  </div>
+
+  <div class="symbol-bar">
+    <button class="sym-btn active" onclick="switchSymbol('BTC/USDT',this)">BTC/USDT</button>
+    <button class="sym-btn" onclick="switchSymbol('ETH/USDT',this)">ETH/USDT</button>
+    <button class="sym-btn" onclick="switchSymbol('EURUSD',this)">EUR/USD</button>
+    <button class="sym-btn" onclick="switchSymbol('XAUUSD',this)">XAU/USD</button>
+  </div>
+
+  <div class="price-display">
+    <div class="price-main up" id="price-main">$43,285.00</div>
+    <div class="price-change up" id="price-chg">▲ +2.14%  24h</div>
+  </div>
+</div>
+
+<!-- ── Main ─────────────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Chart Area -->
+  <div class="chart-area">
+    <div class="chart-toolbar">
+      <span style="font-size:12px;color:var(--muted);font-weight:600" id="sym-label">BTC/USDT</span>
+      <div style="width:1px;height:16px;background:var(--border)"></div>
+      <button class="tf-btn" onclick="setTF('15m',this)">15m</button>
+      <button class="tf-btn active" onclick="setTF('1h',this)">1H</button>
+      <button class="tf-btn" onclick="setTF('4h',this)">4H</button>
+      <button class="tf-btn" onclick="setTF('1d',this)">1D</button>
+      <div style="flex:1"></div>
+      <div style="font-size:11px;color:var(--muted)" id="signal-info">Analyzing market...</div>
+    </div>
+    <div id="chart-container"></div>
+  </div>
+
+  <!-- Right Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-tabs">
+      <div class="stab active"   onclick="showTab('signals',this)">🎯 Signals</div>
+      <div class="stab"          onclick="showTab('confluence',this)">📊 Score</div>
+      <div class="stab"          onclick="showTab('pnl',this)">💰 P&amp;L</div>
+    </div>
+
+    <!-- SIGNALS TAB -->
+    <div id="tab-signals" class="stab-content active">
+      <div id="signal-list">
+        <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">
+          <div style="font-size:24px;margin-bottom:8px">🔍</div>
+          Scanning market...<br>
+          <span style="font-size:11px">High confluence signals only (75+)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFLUENCE TAB -->
+    <div id="tab-confluence" class="stab-content">
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" viewBox="0 0 160 90">
+          <defs>
+            <linearGradient id="gGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stop-color="#ef4444"/>
+              <stop offset="50%"  stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#10b981"/>
+            </linearGradient>
+          </defs>
+          <!-- Track -->
+          <path d="M 20 80 A 60 60 0 0 1 140 80" fill="none" stroke="#1f2937" stroke-width="12" stroke-linecap="round"/>
+          <!-- Fill -->
+          <path id="gauge-arc" d="M 20 80 A 60 60 0 0 1 140 80" fill="none" stroke="url(#gGrad)" stroke-width="12" stroke-linecap="round"
+                stroke-dasharray="188.5" stroke-dashoffset="188.5" style="transition:stroke-dashoffset .8s ease"/>
+          <text id="gauge-val" class="gauge-score-text" x="80" y="72" text-anchor="middle">0</text>
+          <text class="gauge-label-text" x="80" y="86" text-anchor="middle">CONFLUENCE</text>
+          <text class="gauge-label-text" x="22" y="88" text-anchor="middle" fill="#ef4444">0</text>
+          <text class="gauge-label-text" x="138" y="88" text-anchor="middle" fill="#10b981">100</text>
+        </svg>
+        <div id="gauge-grade" style="font-size:14px;font-weight:700;color:var(--muted);margin-top:4px">Waiting...</div>
+      </div>
+
+      <div class="conf-breakdown" id="conf-breakdown">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- P&L TAB -->
+    <div id="tab-pnl" class="stab-content">
+      <div class="pnl-grid">
+        <div class="pnl-card">
+          <div class="pnl-label">Total P&L</div>
+          <div class="pnl-val up" id="total-pnl">+$0.00</div>
+        </div>
+        <div class="pnl-card">
+          <div class="pnl-label">Today</div>
+          <div class="pnl-val up" id="today-pnl">+$0.00</div>
+        </div>
+        <div class="pnl-card">
+          <div class="pnl-label">Win Rate</div>
+          <div class="pnl-val" id="win-rate" style="color:var(--yellow)">—</div>
+        </div>
+        <div class="pnl-card">
+          <div class="pnl-label">Open Trades</div>
+          <div class="pnl-val" id="open-trades">0</div>
+        </div>
+      </div>
+
+      <div class="equity-chart-wrap">
+        <canvas id="equity-canvas" width="316" height="120"></canvas>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Recent Trades</div>
+      <div class="trades-mini" id="trades-list">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">No completed trades yet</div>
+      </div>
+    </div>
+  </div><!-- /sidebar -->
+</div><!-- /main -->
+
+<!-- ── Bottom Stats ──────────────────────────────────────────────────── -->
+<div class="statsbar">
+  <div class="stat-item">
+    <div class="stat-name">Equity</div>
+    <div class="stat-val" id="stat-equity">$10,000</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-name">Signals Today</div>
+    <div class="stat-val" id="stat-signals">0</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-name">Avg Confluence</div>
+    <div class="stat-val" id="stat-avg-conf" style="color:var(--yellow)">—</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-name">Best R:R</div>
+    <div class="stat-val" id="stat-rr" style="color:var(--green)">—</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-name">Est. Win Rate</div>
+    <div class="stat-val" id="stat-wr" style="color:var(--green)">—</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-name">Last Update</div>
+    <div class="stat-val" id="stat-time" style="font-size:12px;color:var(--muted)">—</div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────────
+const STATE = {
+  symbol: 'BTC/USDT',
+  tf: '1h',
+  equity: 10000,
+  totalPnl: 0,
+  todayPnl: 0,
+  wins: 0,
+  losses: 0,
+  trades: [],
+  signals: [],
+  equityHistory: [10000],
+  signalsToday: 0,
+  lastConfluence: 0,
+  bestRR: 0,
+};
+
+const BASE_PRICES = {
+  'BTC/USDT': 43285, 'ETH/USDT': 2285, 'EURUSD': 1.0842, 'XAUUSD': 1948.5
+};
+
+// ── Chart Setup ────────────────────────────────────────────────────────────
+let chart, candleSeries, volumeSeries, markers = [];
+
+function initChart() {
+  const container = document.getElementById('chart-container');
+  if (chart) { chart.remove(); }
+
+  chart = LightweightCharts.createChart(container, {
+    layout: { background: { color: '#0b0e1a' }, textColor: '#6b7280' },
+    grid:   { vertLines: { color: '#111827' }, horzLines: { color: '#111827' } },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#1f2937' },
+    timeScale: { borderColor: '#1f2937', timeVisible: true, secondsVisible: false },
+    width:  container.clientWidth,
+    height: container.clientHeight,
+  });
+
+  candleSeries = chart.addCandlestickSeries({
+    upColor: '#10b981', downColor: '#ef4444',
+    borderUpColor: '#10b981', borderDownColor: '#ef4444',
+    wickUpColor: '#10b981', wickDownColor: '#ef4444',
+  });
+
+  volumeSeries = chart.addHistogramSeries({
+    color: '#26a69a', priceFormat: { type: 'volume' },
+    priceScaleId: '',
+    scaleMargins: { top: 0.85, bottom: 0 },
+  });
+
+  generateCandles(STATE.symbol, STATE.tf);
+
+  new ResizeObserver(() => {
+    chart.resize(container.clientWidth, container.clientHeight);
+  }).observe(container);
+}
+
+function generateCandles(symbol, tf) {
+  const base = BASE_PRICES[symbol] || 100;
+  const n = tf === '15m' ? 200 : tf === '1h' ? 120 : tf === '4h' ? 80 : 50;
+  const tfSecs = { '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 };
+  const step = tfSecs[tf] || 3600;
+  const now = Math.floor(Date.now() / 1000);
+
+  let price = base;
+  const candles = [], volumes = [];
+  const rng = mulberry32(42 + symbol.length);
+
+  for (let i = n; i >= 0; i--) {
+    const t = now - i * step;
+    const vol = 0.003 + rng() * 0.006;
+    const o = price;
+    const c = o * (1 + (rng()-0.5) * 2 * vol);
+    const h = Math.max(o, c) * (1 + rng() * vol * 0.5);
+    const l = Math.min(o, c) * (1 - rng() * vol * 0.5);
+    candles.push({ time: t, open: +o.toFixed(5), high: +h.toFixed(5), low: +l.toFixed(5), close: +c.toFixed(5) });
+    volumes.push({ time: t, value: 500 + rng() * 2000, color: c >= o ? 'rgba(16,185,129,.3)' : 'rgba(239,68,68,.3)' });
+    price = c;
+  }
+
+  candleSeries.setData(candles);
+  volumeSeries.setData(volumes);
+  markers = [];
+  candleSeries.setMarkers([]);
+  STATE._candles = candles;
+}
+
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ── Gauge ──────────────────────────────────────────────────────────────────
+function updateGauge(score, factors) {
+  const arc = document.getElementById('gauge-arc');
+  const val = document.getElementById('gauge-val');
+  const grade = document.getElementById('gauge-grade');
+  const total = 188.5;
+  const offset = total - (score / 100) * total;
+  arc.style.strokeDashoffset = offset;
+  val.textContent = Math.round(score);
+  val.style.fill = score >= 75 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+
+  const grades = ['D 🚫','C ❌','B ⚠️','A ✅','A+ 🔥'];
+  const gi = score >= 85 ? 4 : score >= 75 ? 3 : score >= 65 ? 2 : score >= 50 ? 1 : 0;
+  grade.textContent = grades[gi];
+  grade.style.color = score >= 75 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+
+  if (factors) renderFactors(factors);
+}
+
+function renderFactors(f) {
+  const maxes = { 'AI Signal': 25, 'Multi-TF': 20, 'Volume': 15, 'Trend ADX': 10,
+                  'Candlestick': 10, 'S/R Level': 8, 'Regime': 5, 'RSI Diverg.': 5, 'MACD': 2 };
+  const vals = [f.ai_score||0, f.mtf_score||0, f.volume_score||0, f.trend_score||0,
+                f.candle_score||0, f.sr_score||0, f.regime_score||0, f.divergence_score||0, f.macd_score||0];
+  const names = Object.keys(maxes);
+  const colors = ['#6366f1','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#ec4899','#84cc16'];
+
+  document.getElementById('conf-breakdown').innerHTML = names.map((n, i) => {
+    const pct = Math.round(vals[i] / maxes[n] * 100);
+    return `<div class="conf-row">
+      <div class="conf-name">${n}</div>
+      <div class="conf-track"><div class="conf-bar-fill" style="width:${pct}%;background:${colors[i]}"></div></div>
+      <div class="conf-pts">${vals[i].toFixed(0)}/${maxes[n]}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Signal Card ────────────────────────────────────────────────────────────
+function renderSignalCard(sig) {
+  const dir = sig.direction;
+  const cls = dir === 'BUY' ? 'buy' : 'sell';
+  const scoreColor = sig.confluence_score >= 75 ? 'green' : sig.confluence_score >= 60 ? 'yellow' : 'red';
+  const confColor  = sig.ai_confidence >= 0.75 ? 'green' : sig.ai_confidence >= 0.60 ? 'yellow' : 'red';
+  const rrFill     = Math.min(100, (sig.rr_ratio / 3) * 100);
+
+  return `
+  <div class="signal-card ${cls}">
+    <div class="sig-header">
+      <span class="sig-sym">${sig.symbol}</span>
+      <span class="sig-dir ${cls}">${dir}</span>
+    </div>
+    <div class="sig-scores">
+      <div class="score-item">
+        <div class="score-label">Confluence</div>
+        <div class="score-val ${scoreColor}">${sig.confluence_score.toFixed(0)}</div>
+      </div>
+      <div class="score-item">
+        <div class="score-label">AI Conf</div>
+        <div class="score-val ${confColor}">${(sig.ai_confidence*100).toFixed(0)}%</div>
+      </div>
+    </div>
+    <div class="sig-levels">
+      <div class="level-item">
+        <div class="level-label">ENTRY</div>
+        <div class="level-val">${fmtPrice(sig.entry, sig.symbol)}</div>
+      </div>
+      <div class="level-item">
+        <div class="level-label" style="color:var(--red)">STOP</div>
+        <div class="level-val down">${fmtPrice(sig.stop_loss, sig.symbol)}</div>
+      </div>
+      <div class="level-item">
+        <div class="level-label" style="color:var(--green)">TARGET</div>
+        <div class="level-val up">${fmtPrice(sig.take_profit, sig.symbol)}</div>
+      </div>
+    </div>
+    <div class="rr-bar">
+      <div class="rr-label"><span>R:R Ratio</span><span style="color:var(--green)">${sig.rr_ratio.toFixed(2)}:1</span></div>
+      <div class="rr-track"><div class="rr-fill" style="width:${rrFill}%"></div></div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px">${sig.timestamp}</div>
+  </div>`;
+}
+
+// ── Fake price tick ────────────────────────────────────────────────────────
+let _tickPrice = null;
+function tickPrice(symbol) {
+  if (!_tickPrice) _tickPrice = BASE_PRICES[symbol] || 100;
+  const delta = (_tickPrice * 0.0005 * (Math.random() - 0.48));
+  _tickPrice += delta;
+  return _tickPrice;
+}
+
+// ── Simulate data from backend ─────────────────────────────────────────────
+let _cycle = 0;
+async function fetchAndUpdate() {
+  _cycle++;
+  const now = new Date();
+  document.getElementById('stat-time').textContent =
+    now.toTimeString().slice(0, 8);
+
+  // Update live price
+  const price = tickPrice(STATE.symbol);
+  const base  = BASE_PRICES[STATE.symbol] || 100;
+  const chgPct = ((price - base) / base * 100);
+  const isFx = !STATE.symbol.includes('/');
+  document.getElementById('price-main').textContent =
+    isFx ? price.toFixed(4) : '$' + price.toLocaleString('en-US', {maximumFractionDigits:2});
+  const chgEl = document.getElementById('price-chg');
+  chgEl.textContent = (chgPct >= 0 ? '▲ +' : '▼ ') + chgPct.toFixed(2) + '%  24h';
+  chgEl.className = 'price-change ' + (chgPct >= 0 ? 'up' : 'down');
+
+  // Live candle update
+  if (STATE._candles && STATE._candles.length) {
+    const last = STATE._candles[STATE._candles.length - 1];
+    const updated = { ...last, close: +price.toFixed(5) };
+    updated.high = Math.max(last.high, updated.close);
+    updated.low  = Math.min(last.low,  updated.close);
+    candleSeries.update(updated);
+  }
+
+  // Try API, fall back to simulation
+  try {
+    const resp = await Promise.race([
+      fetch('/api/v1/signals', { credentials:'include' }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 1500))
+    ]);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.signals) processSignals(data.signals);
+      if (data.status)  processBotStatus(data.status);
+      return;
+    }
+  } catch (e) { /* use simulation */ }
+
+  // ── Simulation (no backend) ─────────────────────────────────────────────
+  if (_cycle % 8 === 0) simulateNewSignal();
+  simulatePnlUpdate();
+}
+
+function simulateNewSignal() {
+  const syms = ['BTC/USDT','ETH/USDT','EURUSD','XAUUSD'];
+  const sym  = STATE.symbol;
+  const base = BASE_PRICES[sym] || 100;
+  const dir  = Math.random() > 0.5 ? 'BUY' : 'SELL';
+  const confScore = 72 + Math.random() * 20;
+  const aiConf    = 0.70 + Math.random() * 0.20;
+  const atrPct    = { 'BTC/USDT': 0.018, 'ETH/USDT': 0.020, 'EURUSD': 0.003, 'XAUUSD': 0.008 }[sym] || 0.015;
+  const atr = base * atrPct;
+  const entry = _tickPrice || base;
+  const sl  = dir === 'BUY' ? entry - atr * 1.8  : entry + atr * 1.8;
+  const tp1 = dir === 'BUY' ? entry + atr * 1.8  : entry - atr * 1.8;
+  const tp2 = dir === 'BUY' ? entry + atr * 3.5  : entry - atr * 3.5;
+  const rr  = Math.abs(tp2 - entry) / Math.abs(sl - entry);
+
+  if (confScore < 75) return; // Only fire approved signals
+
+  const sig = {
+    symbol: sym, direction: dir,
+    confluence_score: +confScore.toFixed(1),
+    ai_confidence: +aiConf.toFixed(3),
+    entry: +entry.toFixed(5), stop_loss: +sl.toFixed(5),
+    take_profit: +tp2.toFixed(5), rr_ratio: +rr.toFixed(2),
+    timestamp: new Date().toLocaleTimeString(),
+    factors: {
+      ai_score: aiConf >= 0.80 ? 20 : 15,
+      mtf_score: 14 + Math.random() * 6,
+      volume_score: 10 + Math.random() * 5,
+      trend_score: 5 + Math.random() * 5,
+      candle_score: 3 + Math.random() * 7,
+      sr_score: 3 + Math.random() * 5,
+      regime_score: 2 + Math.random() * 3,
+      divergence_score: Math.random() > 0.7 ? 5 : 0,
+      macd_score: Math.random() > 0.5 ? 2 : 0,
+    }
+  };
+
+  STATE.signals.unshift(sig);
+  if (STATE.signals.length > 10) STATE.signals.pop();
+  STATE.signalsToday++;
+  STATE.lastConfluence = confScore;
+
+  // Update confluence gauge
+  updateGauge(confScore, sig.factors);
+
+  // Add arrow marker on chart
+  addChartMarker(dir, entry);
+
+  // Render signal card
+  const list = document.getElementById('signal-list');
+  list.innerHTML = STATE.signals.map(renderSignalCard).join('');
+
+  // Update bottom stats
+  updateStats();
+
+  // Toast notification
+  showToast(sig);
+}
+
+function addChartMarker(direction, price) {
+  if (!STATE._candles || !STATE._candles.length) return;
+  const last = STATE._candles[STATE._candles.length - 1];
+  markers.push({
+    time: last.time,
+    position: direction === 'BUY' ? 'belowBar' : 'aboveBar',
+    color: direction === 'BUY' ? '#10b981' : '#ef4444',
+    shape: direction === 'BUY' ? 'arrowUp' : 'arrowDown',
+    text: direction === 'BUY' ? '▲ BUY' : '▼ SELL',
+    size: 2,
+  });
+  candleSeries.setMarkers([...markers]);
+}
+
+function simulatePnlUpdate() {
+  // Simulate open trades gradually closing
+  if (STATE.signals.length > 0 && Math.random() > 0.85) {
+    const won = Math.random() > 0.28; // ~72% win rate simulation
+    const pnl = won ? (150 + Math.random() * 200) : -(80 + Math.random() * 50);
+    STATE.totalPnl += pnl;
+    STATE.todayPnl += pnl;
+    STATE.equity   += pnl;
+    if (won) STATE.wins++; else STATE.losses++;
+    STATE.equityHistory.push(+STATE.equity.toFixed(2));
+    if (STATE.equityHistory.length > 50) STATE.equityHistory.shift();
+
+    STATE.trades.unshift({
+      symbol: STATE.symbol,
+      direction: STATE.signals[0]?.direction || 'BUY',
+      pnl: pnl,
+      time: new Date().toLocaleTimeString()
+    });
+    if (STATE.trades.length > 8) STATE.trades.pop();
+
+    updatePnlPanel();
+    drawEquityChart();
+  }
+}
+
+function updatePnlPanel() {
+  const fmt = v => (v >= 0 ? '+$' : '-$') + Math.abs(v).toFixed(2);
+  const pnlEl = document.getElementById('total-pnl');
+  pnlEl.textContent = fmt(STATE.totalPnl);
+  pnlEl.className = 'pnl-val ' + (STATE.totalPnl >= 0 ? 'up' : 'down');
+  const todEl = document.getElementById('today-pnl');
+  todEl.textContent = fmt(STATE.todayPnl);
+  todEl.className = 'pnl-val ' + (STATE.todayPnl >= 0 ? 'up' : 'down');
+  document.getElementById('stat-equity').textContent = '$' + STATE.equity.toLocaleString('en-US', {maximumFractionDigits:0});
+  const total = STATE.wins + STATE.losses;
+  const wr = total > 0 ? (STATE.wins / total * 100).toFixed(0) + '%' : '—';
+  document.getElementById('win-rate').textContent = wr;
+  document.getElementById('win-rate').style.color = STATE.wins/Math.max(1,total) >= 0.65 ? 'var(--green)' : 'var(--yellow)';
+  document.getElementById('open-trades').textContent = Math.min(3, STATE.signals.length);
+
+  const tradesList = document.getElementById('trades-list');
+  if (STATE.trades.length === 0) {
+    tradesList.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">No completed trades yet</div>';
+  } else {
+    tradesList.innerHTML = STATE.trades.map(t => `
+      <div class="trade-row">
+        <span class="trade-sym">${t.symbol} <span style="font-size:10px;color:var(--muted)">${t.direction}</span></span>
+        <span style="font-size:11px;color:var(--muted)">${t.time}</span>
+        <span class="trade-result ${t.pnl >= 0 ? 'up' : 'down'}">${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(0)}</span>
+      </div>`).join('');
+  }
+}
+
+function drawEquityChart() {
+  const canvas = document.getElementById('equity-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const data = STATE.equityHistory;
+  if (data.length < 2) return;
+  const mn = Math.min(...data) * 0.999;
+  const mx = Math.max(...data) * 1.001;
+  const rng = mx - mn || 1;
+
+  const x = i => (i / (data.length - 1)) * W;
+  const y = v => H - ((v - mn) / rng) * H * 0.85 - H * 0.05;
+
+  const isUp = data[data.length-1] >= data[0];
+  const col  = isUp ? '#10b981' : '#ef4444';
+
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(data[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(x(i), y(data[i]));
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, isUp ? 'rgba(16,185,129,.3)' : 'rgba(239,68,68,.3)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.lineTo(x(data.length-1), H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(data[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(x(i), y(data[i]));
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function updateStats() {
+  document.getElementById('stat-signals').textContent = STATE.signalsToday;
+  if (STATE.lastConfluence > 0)
+    document.getElementById('stat-avg-conf').textContent = STATE.lastConfluence.toFixed(0);
+  if (STATE.signals.length > 0) {
+    const maxRR = Math.max(...STATE.signals.map(s => s.rr_ratio));
+    document.getElementById('stat-rr').textContent = maxRR.toFixed(2) + ':1';
+    STATE.bestRR = maxRR;
+  }
+  const total = STATE.wins + STATE.losses;
+  if (total > 0) {
+    const wr = (STATE.wins / total * 100).toFixed(0) + '%';
+    document.getElementById('stat-wr').textContent = wr;
+  }
+}
+
+function showToast(sig) {
+  const wrap = document.getElementById('toast-wrap');
+  const div = document.createElement('div');
+  div.className = 'toast ' + (sig.direction === 'BUY' ? 'buy' : 'sell');
+  div.innerHTML = `
+    <div style="font-weight:700;margin-bottom:4px">${sig.direction === 'BUY' ? '📈' : '📉'} ${sig.direction} — ${sig.symbol}</div>
+    <div style="color:var(--muted)">Score: <b style="color:${sig.confluence_score >= 75 ? 'var(--green)':'var(--yellow)'}">${sig.confluence_score.toFixed(0)}/100</b>
+     &nbsp;|&nbsp; R:R: <b style="color:var(--green)">${sig.rr_ratio.toFixed(2)}:1</b></div>
+  `;
+  wrap.appendChild(div);
+  setTimeout(() => div.remove(), 5000);
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function showTab(name, el) {
+  document.querySelectorAll('.stab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.stab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function setTF(tf, el) {
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  STATE.tf = tf;
+  generateCandles(STATE.symbol, tf);
+  document.getElementById('signal-info').textContent = 'Analyzing ' + STATE.symbol + ' (' + tf + ')...';
+}
+
+function switchSymbol(sym, el) {
+  document.querySelectorAll('.sym-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  STATE.symbol = sym;
+  _tickPrice = BASE_PRICES[sym] || 100;
+  document.getElementById('sym-label').textContent = sym;
+  generateCandles(sym, STATE.tf);
+  document.getElementById('signal-list').innerHTML = `
+    <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">
+      <div style="font-size:24px;margin-bottom:8px">🔍</div>Scanning ${sym}...<br>
+      <span style="font-size:11px">High confluence signals only (75+)</span>
+    </div>`;
+  STATE.signals = [];
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fmtPrice(p, sym) {
+  if (!p) return '—';
+  const isFx = sym && !sym.includes('/');
+  return isFx ? p.toFixed(4) : p.toLocaleString('en-US', {maximumFractionDigits:2});
+}
+
+function processSignals(apiSignals) { /* wire to real API when available */ }
+function processBotStatus(status) {
+  if (status.equity) { STATE.equity = status.equity; updatePnlPanel(); }
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  initChart();
+  drawEquityChart();
+  // Start simulation immediately for demo
+  simulateNewSignal();
+  setInterval(fetchAndUpdate, 3000);   // update every 3s
+  setInterval(simulateNewSignal, 45000); // new signal every 45s
+});
+</script>
+</body>
+</html>

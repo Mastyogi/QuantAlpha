@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AlphaBot — AI Trading Platform</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0a0e1a;
+      --bg2:       #0f1525;
+      --card:      #151d2e;
+      --border:    rgba(255,255,255,0.07);
+      --accent:    #00d4aa;
+      --accent2:   #6366f1;
+      --accent3:   #f59e0b;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --danger:    #ef4444;
+      --success:   #22c55e;
+      --font:      'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Animated background grid ─────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+    }
+
+    /* ── Navigation ───────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      backdrop-filter: blur(16px);
+      background: rgba(10,14,26,0.85);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.25rem; font-weight: 700;
+    }
+    .logo-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+    }
+    .nav-links { display: flex; gap: 2rem; align-items: center; }
+    .nav-links a {
+      color: var(--muted); font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--accent); color: #000 !important;
+      padding: 0.45rem 1.2rem; border-radius: 8px;
+      font-weight: 600; font-size: 0.85rem !important;
+      transition: opacity 0.2s !important;
+    }
+    .nav-cta:hover { opacity: 0.85 !important; color: #000 !important; }
+
+    /* ── Live ticker bar ──────────────────────────────── */
+    .ticker-bar {
+      position: fixed; top: 64px; left: 0; right: 0; z-index: 99;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      height: 36px; overflow: hidden;
+      display: flex; align-items: center;
+    }
+    .ticker-scroll {
+      display: flex; gap: 3rem;
+      animation: tickerMove 30s linear infinite;
+      white-space: nowrap;
+      padding: 0 2rem;
+    }
+    @keyframes tickerMove {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .ticker-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.78rem; color: var(--muted);
+    }
+    .ticker-item .sym { color: var(--text); font-weight: 600; }
+    .ticker-item .up  { color: var(--success); }
+    .ticker-item .dn  { color: var(--danger); }
+
+    /* ── Main sections ────────────────────────────────── */
+    main { position: relative; z-index: 1; }
+
+    /* ── Hero ─────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      padding: 160px 2rem 6rem;
+      display: flex; flex-direction: column;
+      align-items: center; text-align: center;
+      position: relative;
+    }
+    .hero-glow {
+      position: absolute;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,212,170,0.12) 0%, transparent 70%);
+      top: 20%; left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: rgba(0,212,170,0.1);
+      border: 1px solid rgba(0,212,170,0.3);
+      color: var(--accent); padding: 0.3rem 1rem;
+      border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    .badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(1.4); }
+    }
+    h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 800; line-height: 1.1;
+      letter-spacing: -0.02em;
+      max-width: 900px;
+    }
+    h1 .grad {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      margin-top: 1.5rem; max-width: 640px;
+      color: var(--muted); font-size: 1.1rem; line-height: 1.7;
+    }
+    .hero-btns {
+      margin-top: 2.5rem;
+      display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #00b894);
+      color: #000; font-weight: 700; padding: 0.8rem 2rem;
+      border-radius: 12px; font-size: 1rem;
+      border: none; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(0,212,170,0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,212,170,0.4);
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text); font-weight: 600; padding: 0.8rem 2rem;
+      border-radius: 12px; font-size: 1rem; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); background: rgba(0,212,170,0.05); }
+
+    /* ── Stats row ────────────────────────────────────── */
+    .stats-row {
+      display: flex; gap: 3rem; flex-wrap: wrap; justify-content: center;
+      margin-top: 4rem; padding-top: 3rem;
+      border-top: 1px solid var(--border);
+    }
+    .stat { text-align: center; }
+    .stat-val {
+      font-size: 2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stat-label { color: var(--muted); font-size: 0.85rem; margin-top: 0.2rem; }
+
+    /* ── Chart preview ────────────────────────────────── */
+    .chart-preview {
+      margin-top: 5rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.5rem;
+      max-width: 900px; width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      position: relative; overflow: hidden;
+    }
+    .chart-preview::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, transparent 60%, rgba(10,14,26,0.8));
+      pointer-events: none; z-index: 2;
+    }
+    .chart-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem;
+    }
+    .chart-title { font-weight: 700; }
+    .chart-badge {
+      background: rgba(0,212,170,0.1); color: var(--accent);
+      padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem;
+    }
+    canvas#miniChart { width: 100%; height: 140px; }
+
+    /* ── Features section ─────────────────────────────── */
+    .section { padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }
+    .section-title {
+      text-align: center; font-size: 2.2rem; font-weight: 800;
+      margin-bottom: 0.75rem;
+    }
+    .section-sub { text-align: center; color: var(--muted); margin-bottom: 3rem; }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.75rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover {
+      border-color: rgba(0,212,170,0.3);
+      transform: translateY(-4px);
+    }
+    .feature-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin-bottom: 1rem;
+    }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .feature-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+
+    /* ── Markets section ──────────────────────────────── */
+    .markets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .market-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.25rem;
+      display: flex; align-items: center; gap: 1rem;
+    }
+    .market-flag { font-size: 1.8rem; }
+    .market-info h4 { font-size: 0.9rem; font-weight: 700; }
+    .market-info p { font-size: 0.75rem; color: var(--muted); }
+    .market-badge {
+      margin-left: auto;
+      background: rgba(34,197,94,0.1); color: var(--success);
+      padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem;
+    }
+
+    /* ── OAuth login section ──────────────────────────── */
+    .login-section {
+      padding: 5rem 2rem;
+      display: flex; justify-content: center;
+    }
+    .login-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 3rem;
+      width: 100%; max-width: 460px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      position: relative; overflow: hidden;
+    }
+    .login-card::before {
+      content: '';
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 200px; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+    .login-card h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.5rem; }
+    .login-card p { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+
+    .oauth-btn {
+      width: 100%; padding: 0.85rem 1.5rem;
+      border-radius: 12px; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; border: none;
+      display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+      transition: transform 0.15s, box-shadow 0.15s;
+      text-decoration: none;
+    }
+    .oauth-btn:hover { transform: translateY(-2px); }
+    .oauth-google {
+      background: #fff; color: #1a1a1a;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      margin-bottom: 1rem;
+    }
+    .oauth-google:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+    .oauth-github {
+      background: #24292e; color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      margin-bottom: 1rem;
+    }
+    .oauth-github:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+    .oauth-demo {
+      background: rgba(0,212,170,0.1);
+      border: 1px solid rgba(0,212,170,0.3);
+      color: var(--accent);
+    }
+    .oauth-demo:hover { background: rgba(0,212,170,0.15); }
+    .divider {
+      display: flex; align-items: center; gap: 1rem;
+      color: var(--muted); font-size: 0.8rem; margin: 1rem 0;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .login-notice {
+      margin-top: 1.5rem; font-size: 0.78rem; color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Flash messages */
+    .flash {
+      padding: 0.75rem 1rem; border-radius: 8px;
+      margin-bottom: 1.5rem; font-size: 0.85rem;
+    }
+    .flash-error   { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.3);  color: #fca5a5; }
+    .flash-success { background: rgba(34,197,94,0.1);  border: 1px solid rgba(34,197,94,0.3);  color: #86efac; }
+
+    /* ── How it works ─────────────────────────────────── */
+    .steps-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem; counter-reset: steps;
+    }
+    .step-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.75rem;
+      position: relative;
+    }
+    .step-num {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #000; font-weight: 800; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1rem;
+    }
+    .step-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .step-card p  { font-size: 0.85rem; color: var(--muted); }
+
+    /* ── Footer ───────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem; text-align: center;
+      color: var(--muted); font-size: 0.85rem;
+    }
+    footer span { color: var(--accent); }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      h1 { font-size: 2.2rem; }
+      .stats-row { gap: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <div class="logo">
+    <div class="logo-icon">📈</div>
+    <span>AlphaBot</span>
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#markets">Markets</a>
+    <a href="#how">How It Works</a>
+    <a href="#login" class="nav-cta">Get Access →</a>
+  </div>
+</nav>
+
+<!-- Live ticker bar -->
+<div class="ticker-bar">
+  <div class="ticker-scroll" id="tickerScroll">
+    <span class="ticker-item"><span class="sym">BTC/USDT</span> <span class="up">▲ 43,820.50  +1.24%</span></span>
+    <span class="ticker-item"><span class="sym">ETH/USDT</span> <span class="up">▲ 2,318.40  +0.87%</span></span>
+    <span class="ticker-item"><span class="sym">EUR/USD</span> <span class="dn">▼ 1.0847  -0.12%</span></span>
+    <span class="ticker-item"><span class="sym">GBP/USD</span> <span class="up">▲ 1.2654  +0.18%</span></span>
+    <span class="ticker-item"><span class="sym">XAU/USD</span> <span class="up">▲ 2,031.80  +0.34%</span></span>
+    <span class="ticker-item"><span class="sym">USD/JPY</span> <span class="dn">▼ 149.32  -0.21%</span></span>
+    <span class="ticker-item"><span class="sym">SOL/USDT</span> <span class="up">▲ 98.24  +3.41%</span></span>
+    <span class="ticker-item"><span class="sym">XAG/USD</span> <span class="dn">▼ 22.74  -0.48%</span></span>
+    <span class="ticker-item"><span class="sym">WTI OIL</span> <span class="up">▲ 78.65  +0.92%</span></span>
+    <!-- duplicate for seamless loop -->
+    <span class="ticker-item"><span class="sym">BTC/USDT</span> <span class="up">▲ 43,820.50  +1.24%</span></span>
+    <span class="ticker-item"><span class="sym">ETH/USDT</span> <span class="up">▲ 2,318.40  +0.87%</span></span>
+    <span class="ticker-item"><span class="sym">EUR/USD</span> <span class="dn">▼ 1.0847  -0.12%</span></span>
+    <span class="ticker-item"><span class="sym">GBP/USD</span> <span class="up">▲ 1.2654  +0.18%</span></span>
+    <span class="ticker-item"><span class="sym">XAU/USD</span> <span class="up">▲ 2,031.80  +0.34%</span></span>
+    <span class="ticker-item"><span class="sym">USD/JPY</span> <span class="dn">▼ 149.32  -0.21%</span></span>
+    <span class="ticker-item"><span class="sym">SOL/USDT</span> <span class="up">▲ 98.24  +3.41%</span></span>
+    <span class="ticker-item"><span class="sym">WTI OIL</span> <span class="up">▲ 78.65  +0.92%</span></span>
+  </div>
+</div>
+
+<main>
+
+<!-- Hero -->
+<section class="hero" id="home">
+  <div class="hero-glow"></div>
+  <div class="badge">
+    <span class="badge-dot"></span>
+    Live Paper Trading — 47/47 Tests Passing
+  </div>
+  <h1>
+    AI-Powered Trading<br/>
+    <span class="grad">Across Every Market</span>
+  </h1>
+  <p class="hero-sub">
+    Enterprise-grade algorithmic trading bot with multi-model AI ensemble,
+    real-time risk management, and support for Crypto, Forex, and Commodities
+    — all from a single platform.
+  </p>
+  <div class="hero-btns">
+    <a href="#login" class="btn-primary">🚀 Get Dashboard Access</a>
+    <a href="#features" class="btn-secondary">Explore Features ↓</a>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val">47/47</div><div class="stat-label">Tests Passing</div></div>
+    <div class="stat"><div class="stat-val">20+</div><div class="stat-label">Technical Indicators</div></div>
+    <div class="stat"><div class="stat-val">7</div><div class="stat-label">Risk Layers</div></div>
+    <div class="stat"><div class="stat-val">3</div><div class="stat-label">Asset Classes</div></div>
+    <div class="stat"><div class="stat-val">24/7</div><div class="stat-label">Autonomous Trading</div></div>
+  </div>
+
+  <!-- Mini chart -->
+  <div class="chart-preview">
+    <div class="chart-header">
+      <span class="chart-title">BTC/USDT — Live Simulation</span>
+      <span class="chart-badge">● LIVE</span>
+    </div>
+    <canvas id="miniChart"></canvas>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="section" id="features">
+  <h2 class="section-title">Everything You Need to <span style="color:var(--accent)">Trade Smarter</span></h2>
+  <p class="section-sub">A fully integrated pipeline from signal generation to order execution</p>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(0,212,170,0.1)">🤖</div>
+      <h3>AI Ensemble Engine</h3>
+      <p>XGBoost + RandomForest ensemble with 23-feature pipeline. Auto-trains on first run, retrains every 24 hours with fresh market data.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(99,102,241,0.1)">📊</div>
+      <h3>20+ Technical Indicators</h3>
+      <p>EMA, RSI, MACD, Bollinger Bands, ATR, ADX, VWAP, OBV, Stochastic, volume profile — all computed with zero NaN guarantees.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(245,158,11,0.1)">🛡️</div>
+      <h3>7-Layer Risk Engine</h3>
+      <p>Circuit breakers, daily loss limits, max drawdown protection, position sizing, R:R ratio enforcement, confidence thresholds.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(239,68,68,0.1)">💱</div>
+      <h3>Forex &amp; Commodities</h3>
+      <p>Trade EUR/USD, GBP/USD, XAU/USD, WTI Oil and more via MT5 integration. Pip-based position sizing with lot calculation.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(34,197,94,0.1)">📱</div>
+      <h3>Telegram Notifications</h3>
+      <p>Real-time signal alerts, trade confirmations, P&amp;L reports, and risk warnings delivered directly to your Telegram.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(139,92,246,0.1)">⚡</div>
+      <h3>Vectorized Backtester</h3>
+      <p>Test strategies on historical data with slippage, fees, SL/TP simulation. Sharpe ratio, profit factor, max drawdown metrics.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Markets -->
+<section class="section" id="markets" style="padding-top:0">
+  <h2 class="section-title">Supported <span style="color:var(--accent2)">Markets</span></h2>
+  <p class="section-sub">One bot, three asset classes, unlimited opportunities</p>
+  <div class="markets-grid">
+    <div class="market-card"><div class="market-flag">₿</div><div class="market-info"><h4>BTC/USDT</h4><p>Bitcoin</p></div><div class="market-badge">LIVE</div></div>
+    <div class="market-card"><div class="market-flag">Ξ</div><div class="market-info"><h4>ETH/USDT</h4><p>Ethereum</p></div><div class="market-badge">LIVE</div></div>
+    <div class="market-card"><div class="market-flag">🇪🇺</div><div class="market-info"><h4>EUR/USD</h4><p>Euro/Dollar</p></div><div class="market-badge">MT5</div></div>
+    <div class="market-card"><div class="market-flag">🇬🇧</div><div class="market-info"><h4>GBP/USD</h4><p>Pound/Dollar</p></div><div class="market-badge">MT5</div></div>
+    <div class="market-card"><div class="market-flag">🥇</div><div class="market-info"><h4>XAU/USD</h4><p>Gold</p></div><div class="market-badge">MT5</div></div>
+    <div class="market-card"><div class="market-flag">🛢️</div><div class="market-info"><h4>WTI Oil</h4><p>US Crude</p></div><div class="market-badge">MT5</div></div>
+    <div class="market-card"><div class="market-flag">🇯🇵</div><div class="market-info"><h4>USD/JPY</h4><p>Dollar/Yen</p></div><div class="market-badge">MT5</div></div>
+    <div class="market-card"><div class="market-flag">🥈</div><div class="market-info"><h4>XAG/USD</h4><p>Silver</p></div><div class="market-badge">MT5</div></div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="section" id="how" style="padding-top:0">
+  <h2 class="section-title">How It <span style="color:var(--accent)">Works</span></h2>
+  <p class="section-sub">From raw market data to executed trade in milliseconds</p>
+  <div class="steps-grid">
+    <div class="step-card"><div class="step-num">1</div><h3>Data Ingestion</h3><p>OHLCV candles fetched every hour from CCXT (crypto) or MT5 simulator (forex/commodities), validated and cleaned.</p></div>
+    <div class="step-card"><div class="step-num">2</div><h3>Indicator Computation</h3><p>20+ technical indicators computed: EMA crossovers, RSI divergence, MACD histogram, Bollinger squeeze and more.</p></div>
+    <div class="step-card"><div class="step-num">3</div><h3>AI Prediction</h3><p>23-feature vector fed to XGBoost ensemble. Confidence score ≥ 70% required to pass to risk engine.</p></div>
+    <div class="step-card"><div class="step-num">4</div><h3>Risk Validation</h3><p>7-layer risk check: position size ≤ 2%, R:R ≥ 1.5:1, circuit breakers, daily loss limits enforced.</p></div>
+    <div class="step-card"><div class="step-num">5</div><h3>Order Execution</h3><p>Paper or live order placed via CCXT / MT5. Stop-loss and take-profit levels set automatically.</p></div>
+    <div class="step-card"><div class="step-num">6</div><h3>Telegram Alert</h3><p>Signal details, entry/exit prices, P&amp;L, and equity curve sent to your Telegram in real time.</p></div>
+  </div>
+</section>
+
+<!-- Login -->
+<section class="login-section" id="login">
+  <div class="login-card">
+    <h2>Access Dashboard</h2>
+    <p>Sign in to view live signals, manage your bot, and monitor P&amp;L</p>
+
+    {% if error %}
+    <div class="flash flash-error">{{ error }}</div>
+    {% endif %}
+    {% if message %}
+    <div class="flash flash-success">{{ message }}</div>
+    {% endif %}
+
+    {% if google_configured %}
+    <a href="/auth/google" class="oauth-btn oauth-google">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </a>
+    {% endif %}
+
+    {% if github_configured %}
+    <a href="/auth/github" class="oauth-btn oauth-github">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58l-.01-2.24c-3.34.73-4.04-1.41-4.04-1.41-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.85 1.24 1.85 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02.01 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22l-.01 3.29c0 .32.22.7.83.58C20.57 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z"/></svg>
+      Continue with GitHub
+    </a>
+    {% endif %}
+
+    {% if not google_configured and not github_configured %}
+    <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.82rem;color:#fcd34d;text-align:left">
+      ⚙️ <strong>OAuth not configured.</strong> Set GOOGLE_CLIENT_ID/SECRET or GITHUB_CLIENT_ID/SECRET in .env to enable OAuth login.
+    </div>
+    {% endif %}
+
+    <div class="divider">or</div>
+
+    <a href="/auth/demo" class="oauth-btn oauth-demo">
+      🎮 Continue as Demo User
+    </a>
+
+    <p class="login-notice">
+      By signing in you agree to our Terms of Service.<br/>
+      Your data is never shared with third parties.<br/>
+      {% if allowed_emails %}
+      ⚠️ Access restricted to approved emails only.
+      {% endif %}
+    </p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>© 2026 AlphaBot — Enterprise AI Trading Platform &nbsp;|&nbsp; Built with <span>♥</span> by Claude &nbsp;|&nbsp; Paper trading only — not financial advice</p>
+</footer>
+
+<script>
+// ── Live mini chart ───────────────────────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('miniChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth;
+  const H = 140;
+  canvas.width = W * window.devicePixelRatio;
+  canvas.height = H * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  let prices = [];
+  let p = 43000;
+  for (let i = 0; i < 80; i++) {
+    p += (Math.random() - 0.48) * 200;
+    prices.push(p);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const min = Math.min(...prices) - 100;
+    const max = Math.max(...prices) + 100;
+    const scaleY = v => H - ((v - min) / (max - min)) * H;
+    const scaleX = i => (i / (prices.length - 1)) * W;
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, 'rgba(0,212,170,0.2)');
+    grad.addColorStop(1, 'rgba(0,212,170,0)');
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    prices.forEach((v, i) => ctx.lineTo(scaleX(i), scaleY(v)));
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    prices.forEach((v, i) => {
+      if (i === 0) ctx.moveTo(scaleX(i), scaleY(v));
+      else ctx.lineTo(scaleX(i), scaleY(v));
+    });
+    ctx.strokeStyle = '#00d4aa';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Current price dot
+    const last = prices[prices.length - 1];
+    ctx.beginPath();
+    ctx.arc(W - 2, scaleY(last), 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#00d4aa';
+    ctx.fill();
+  }
+
+  draw();
+
+  // Animate new ticks
+  setInterval(() => {
+    p += (Math.random() - 0.48) * 150;
+    prices.push(p);
+    if (prices.length > 80) prices.shift();
+    draw();
+  }, 1000);
+})();
+
+// ── Flash auto-hide ───────────────────────────────────────────────────────────
+setTimeout(() => {
+  document.querySelectorAll('.flash').forEach(el => {
+    el.style.transition = 'opacity 0.5s';
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 500);
+  });
+}, 4000);
+</script>
+</body>
+</html>

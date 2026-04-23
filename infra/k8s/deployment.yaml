@@ -1,0 +1,306 @@
+---
+# ╔══════════════════════════════════════════════════════════════╗
+# ║     AI TRADING PLATFORM — KUBERNETES MANIFESTS              ║
+# ║     Namespace | Deployments | Services | HPA | RBAC         ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+# ── Namespace ─────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trading-bot
+  labels:
+    app: ai-trading-platform
+    environment: production
+
+---
+# ── ConfigMap ─────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trading-bot-config
+  namespace: trading-bot
+data:
+  TRADING_MODE: "paper"
+  EXCHANGE_NAME: "binance"
+  EXCHANGE_TESTNET: "true"
+  PRIMARY_TIMEFRAME: "1h"
+  SECONDARY_TIMEFRAME: "4h"
+  TRADING_PAIRS: "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT"
+  STRATEGY_MODE: "ensemble"
+  AI_CONFIDENCE_THRESHOLD: "0.70"
+  MAX_POSITION_SIZE_PCT: "2.0"
+  MAX_DAILY_LOSS_PCT: "5.0"
+  MAX_DRAWDOWN_PCT: "15.0"
+  MAX_OPEN_POSITIONS: "5"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  API_PORT: "8000"
+  PROMETHEUS_PORT: "9090"
+
+---
+# ── Secret (populate with kubectl create secret) ──────────────────────────────
+# kubectl create secret generic trading-bot-secrets \
+#   --from-literal=TELEGRAM_BOT_TOKEN=xxx \
+#   --from-literal=TELEGRAM_ADMIN_CHAT_ID=xxx \
+#   --from-literal=EXCHANGE_API_KEY=xxx \
+#   --from-literal=EXCHANGE_API_SECRET=xxx \
+#   --from-literal=DATABASE_URL=xxx \
+#   --from-literal=REDIS_URL=xxx \
+#   -n trading-bot
+
+---
+# ── Trading Bot Deployment ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-bot
+  namespace: trading-bot
+  labels:
+    app: trading-bot
+    component: engine
+spec:
+  replicas: 1            # IMPORTANT: Only 1 replica — trading bots must not duplicate orders
+  selector:
+    matchLabels:
+      app: trading-bot
+  strategy:
+    type: Recreate       # Recreate (not RollingUpdate) to prevent dual-execution
+  template:
+    metadata:
+      labels:
+        app: trading-bot
+        component: engine
+    spec:
+      serviceAccountName: trading-bot-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: trading-bot
+          image: ai-trading-bot:latest
+          imagePullPolicy: Always
+          ports:
+            - name: api
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: trading-bot-config
+            - secretRef:
+                name: trading-bot-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          volumeMounts:
+            - name: bot-logs
+              mountPath: /app/logs
+            - name: bot-models
+              mountPath: /app/models
+      volumes:
+        - name: bot-logs
+          persistentVolumeClaim:
+            claimName: bot-logs-pvc
+        - name: bot-models
+          persistentVolumeClaim:
+            claimName: bot-models-pvc
+      restartPolicy: Always
+
+---
+# ── Web Dashboard Deployment ──────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-web
+  namespace: trading-bot
+  labels:
+    app: trading-web
+    component: dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trading-web
+  template:
+    metadata:
+      labels:
+        app: trading-web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: trading-web
+          image: ai-trading-bot:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "src.web.app"]
+          ports:
+            - name: web
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: trading-bot-config
+            - secretRef:
+                name: trading-bot-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 30
+
+---
+# ── Services ──────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-bot-api
+  namespace: trading-bot
+spec:
+  selector:
+    app: trading-bot
+  ports:
+    - name: api
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-web
+  namespace: trading-bot
+spec:
+  selector:
+    app: trading-web
+  ports:
+    - name: web
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+---
+# ── Ingress ───────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trading-ingress
+  namespace: trading-bot
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - trading.yourdomain.com
+      secretName: trading-tls
+  rules:
+    - host: trading.yourdomain.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: trading-bot-api
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: trading-web
+                port:
+                  number: 8080
+
+---
+# ── RBAC ──────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trading-bot-sa
+  namespace: trading-bot
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: trading-bot-role
+  namespace: trading-bot
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: trading-bot-rolebinding
+  namespace: trading-bot
+subjects:
+  - kind: ServiceAccount
+    name: trading-bot-sa
+    namespace: trading-bot
+roleRef:
+  kind: Role
+  name: trading-bot-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ── PersistentVolumeClaims ────────────────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bot-logs-pvc
+  namespace: trading-bot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bot-models-pvc
+  namespace: trading-bot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 2Gi

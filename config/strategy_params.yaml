@@ -1,0 +1,24 @@
+strategy:
+  mode: ensemble
+  primary_timeframe: 1h
+  secondary_timeframe: 4h
+  confirmation_timeframe: 15m
+  signal_score_threshold: 50
+  adx_threshold: 25
+  volume_ratio_threshold: 1.2
+
+indicators:
+  rsi_period: 14
+  rsi_overbought: 70
+  rsi_oversold: 30
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  bb_period: 20
+  bb_std: 2.0
+  ema_periods: [9, 21, 50, 200]
+  atr_period: 14
+
+ensemble:
+  min_agreement: 2  # out of 3 strategies must agree
+  confidence_boost: 0.1  # bonus when all agree

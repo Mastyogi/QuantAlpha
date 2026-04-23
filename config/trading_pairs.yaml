@@ -1,0 +1,13 @@
+watchlist:
+  - symbol: BTC/USDT
+    enabled: true
+    weight: 0.4
+  - symbol: ETH/USDT
+    enabled: true
+    weight: 0.3
+  - symbol: SOL/USDT
+    enabled: true
+    weight: 0.15
+  - symbol: BNB/USDT
+    enabled: true
+    weight: 0.15

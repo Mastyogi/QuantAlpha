@@ -1,0 +1,42 @@
+════════════════════════════════════════════════
+HOSTINGER KODEE - DOCKER DEPLOYMENT PROMPTS
+════════════════════════════════════════════════
+Copy one at a time. Wait for completion.
+────────────────────────────────────────────────
+
+1️⃣ INSTALL DOCKER
+curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh && apt install -y docker-compose && docker --version && docker-compose --version
+
+⚠️ UPLOAD FILES NOW to /opt/quantalpha/ via FileZilla:
+   - docker-compose.yml
+   - Dockerfile
+   - .env
+   - requirements.txt
+   - src/ folder (all files)
+   - config/ folder (all files)
+   - run_trading_bot.py
+
+2️⃣ BUILD & START
+cd /opt/quantalpha && docker-compose up -d --build && sleep 10 && docker ps
+
+3️⃣ CHECK LOGS
+docker logs quantalpha-trading-bot --tail 50
+
+✅ DONE! Test: /status in Telegram @multipiller_bot
+
+────────────────────────────────────────────────
+MANAGE:
+docker ps
+docker logs quantalpha-trading-bot -f
+docker-compose restart
+docker-compose down
+════════════════════════════════════════════════
+
+Expected in logs:
+✅ BOT IS RUNNING!
+✅ Telegram polling started
+
+If errors, check:
+docker logs quantalpha-trading-bot --tail 100
+cat /opt/quantalpha/.env
+docker-compose ps

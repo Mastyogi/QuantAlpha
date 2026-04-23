@@ -1,0 +1,71 @@
+════════════════════════════════════════════════
+HOSTINGER AI - ULTRA SHORT PROMPTS
+════════════════════════════════════════════════
+Copy one at a time. Wait for completion. Then next.
+────────────────────────────────────────────────
+
+1️⃣ INSTALL
+apt update && apt install -y python3 python3-pip python3-venv git build-essential && python3 --version
+
+2️⃣ FOLDERS
+mkdir -p /opt/quantalpha/{logs,models,reports} && chmod 755 /opt/quantalpha
+
+⚠️ UPLOAD FILES NOW via FileZilla to /opt/quantalpha/
+
+3️⃣ VENV
+cd /opt/quantalpha && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+
+4️⃣ CONFIG
+cat > /opt/quantalpha/.env << 'EOF'
+BOT_NAME=QuantAlpha
+EXCHANGE_NAME=bitget
+EXCHANGE_API_KEY=bg_24b5d72feb434de76d28b3b97b0a6b52
+EXCHANGE_SECRET=53caeab8cb8733c84e7c29075911176d32468edf1593505c741412cb8332c30b
+EXCHANGE_PASSPHRASE=fixswingproduceclevererasesucces
+TRADING_MODE=paper
+TESTNET=false
+TELEGRAM_BOT_TOKEN=8619104592:AAEjVGp9eRpphPoP9bhqxMboVf_A-UdXX_M
+TELEGRAM_ADMIN_CHAT_ID=7263314996
+DATABASE_URL=postgresql+asyncpg://postgres:Rahul%40639228@db.ycmhzbctijkgpwjfloxk.supabase.co:5432/postgres
+REDIS_URL=redis://localhost:6379/0
+SECRET_KEY=Hf8R2LSsIrdNtVm0uPiaq1wEg6CUkMDGABKO9YeJvzZy35lQhp4oX7njcTFbxW
+LOG_LEVEL=INFO
+PAIRS=BTC/USDT,ETH/USDT,SOL/USDT
+PRIMARY_TIMEFRAME=1h
+CONFLUENCE_THRESHOLD=82
+BASE_RISK_PCT=1.0
+EOF
+
+5️⃣ SERVICE
+cat > /etc/systemd/system/quantalpha.service << 'EOF'
+[Unit]
+Description=QuantAlpha Trading Bot
+After=network.target
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/quantalpha
+Environment="PATH=/opt/quantalpha/venv/bin"
+ExecStart=/opt/quantalpha/venv/bin/python3 /opt/quantalpha/run_trading_bot.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/opt/quantalpha/logs/bot.log
+StandardError=append:/opt/quantalpha/logs/bot_error.log
+[Install]
+WantedBy=multi-user.target
+EOF
+
+6️⃣ START
+systemctl daemon-reload && systemctl enable quantalpha && systemctl start quantalpha && systemctl status quantalpha
+
+7️⃣ LOGS
+journalctl -u quantalpha -n 30
+
+✅ DONE! Test: /status in Telegram @multipiller_bot
+
+────────────────────────────────────────────────
+MANAGE:
+systemctl status quantalpha
+journalctl -u quantalpha -f
+systemctl restart quantalpha
+════════════════════════════════════════════════

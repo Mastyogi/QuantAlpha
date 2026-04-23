@@ -1,0 +1,10 @@
+risk:
+  max_position_size_pct: 2.0
+  max_daily_loss_pct: 5.0
+  max_drawdown_pct: 15.0
+  max_open_positions: 5
+  risk_reward_ratio_min: 1.5
+  slippage_pct: 0.1
+  kelly_fraction: 0.25
+  atr_stop_multiplier: 2.0
+  atr_target_multiplier: 4.0

@@ -1,0 +1,88 @@
+forex:
+  majors:
+    - symbol: EURUSD
+      description: "Euro / US Dollar"
+      pip_size: 0.0001
+      lot_size: 100000
+      min_lot: 0.01
+      max_lot: 100.0
+      enabled: true
+
+    - symbol: GBPUSD
+      description: "British Pound / US Dollar"
+      pip_size: 0.0001
+      lot_size: 100000
+      min_lot: 0.01
+      max_lot: 100.0
+      enabled: true
+
+    - symbol: USDJPY
+      description: "US Dollar / Japanese Yen"
+      pip_size: 0.01
+      lot_size: 100000
+      min_lot: 0.01
+      max_lot: 100.0
+      enabled: true
+
+    - symbol: AUDUSD
+      description: "Australian Dollar / US Dollar"
+      pip_size: 0.0001
+      lot_size: 100000
+      min_lot: 0.01
+      max_lot: 100.0
+      enabled: true
+
+    - symbol: USDCAD
+      description: "US Dollar / Canadian Dollar"
+      pip_size: 0.0001
+      lot_size: 100000
+      min_lot: 0.01
+      max_lot: 100.0
+      enabled: false
+
+commodities:
+  metals:
+    - symbol: XAUUSD
+      description: "Gold / US Dollar"
+      pip_size: 0.01
+      lot_size: 100       # 100 oz per lot
+      min_lot: 0.01
+      max_lot: 50.0
+      enabled: true
+
+    - symbol: XAGUSD
+      description: "Silver / US Dollar"
+      pip_size: 0.001
+      lot_size: 5000      # 5000 oz per lot
+      min_lot: 0.01
+      max_lot: 50.0
+      enabled: true
+
+  energy:
+    - symbol: USOIL
+      description: "US Crude Oil (WTI)"
+      pip_size: 0.01
+      lot_size: 1000      # 1000 barrels per lot
+      min_lot: 0.01
+      max_lot: 50.0
+      enabled: true
+
+    - symbol: UKOIL
+      description: "UK Brent Crude"
+      pip_size: 0.01
+      lot_size: 1000
+      min_lot: 0.01
+      max_lot: 50.0
+      enabled: false
+
+# Unified pip values for risk calculation (USD per pip per lot)
+pip_values_usd:
+  EURUSD: 10.0
+  GBPUSD: 10.0
+  USDJPY: 7.14    # approximate at 140 USDJPY
+  AUDUSD: 10.0
+  USDCAD: 7.69
+  XAUUSD: 1.0     # per 0.01 move
+  XAGUSD: 0.50
+  USOIL:  1.0
+  UKOIL:  1.0

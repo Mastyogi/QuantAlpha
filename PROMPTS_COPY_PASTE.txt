@@ -1,0 +1,119 @@
+═══════════════════════════════════════════════════════════
+HOSTINGER AI - COPY-PASTE PROMPTS (One by One)
+═══════════════════════════════════════════════════════════
+
+⚠️ IMPORTANT: Copy one prompt at a time, wait for completion, then next!
+
+───────────────────────────────────────────────────────────
+PROMPT 1: System Setup
+───────────────────────────────────────────────────────────
+apt update && apt upgrade -y && apt install -y python3 python3-pip python3-venv git build-essential libssl-dev libffi-dev python3-dev htop curl && python3 --version
+
+───────────────────────────────────────────────────────────
+PROMPT 2: Create Directories
+───────────────────────────────────────────────────────────
+mkdir -p /opt/quantalpha/logs /opt/quantalpha/models /opt/quantalpha/reports && chmod 755 /opt/quantalpha && ls -la /opt/quantalpha
+
+───────────────────────────────────────────────────────────
+⚠️ NOW: Upload files to /opt/quantalpha/ using FileZilla!
+───────────────────────────────────────────────────────────
+
+───────────────────────────────────────────────────────────
+PROMPT 3: Setup Virtual Environment
+───────────────────────────────────────────────────────────
+cd /opt/quantalpha && python3 -m venv venv && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt
+
+───────────────────────────────────────────────────────────
+PROMPT 4: Create .env Part 1
+───────────────────────────────────────────────────────────
+cat > /opt/quantalpha/.env << 'EOF'
+BOT_NAME=QuantAlpha
+EXCHANGE_NAME=bitget
+EXCHANGE_API_KEY=bg_24b5d72feb434de76d28b3b97b0a6b52
+EXCHANGE_SECRET=53caeab8cb8733c84e7c29075911176d32468edf1593505c741412cb8332c30b
+EXCHANGE_PASSPHRASE=fixswingproduceclevererasesucces
+TRADING_MODE=paper
+TESTNET=false
+EOF
+
+───────────────────────────────────────────────────────────
+PROMPT 5: Create .env Part 2
+───────────────────────────────────────────────────────────
+cat >> /opt/quantalpha/.env << 'EOF'
+TELEGRAM_BOT_TOKEN=8619104592:AAEjVGp9eRpphPoP9bhqxMboVf_A-UdXX_M
+TELEGRAM_ADMIN_CHAT_ID=7263314996
+DATABASE_URL=postgresql+asyncpg://postgres:Rahul%40639228@db.ycmhzbctijkgpwjfloxk.supabase.co:5432/postgres
+REDIS_URL=redis://localhost:6379/0
+SECRET_KEY=Hf8R2LSsIrdNtVm0uPiaq1wEg6CUkMDGABKO9YeJvzZy35lQhp4oX7njcTFbxW
+LOG_LEVEL=INFO
+PAIRS=BTC/USDT,ETH/USDT,SOL/USDT
+PRIMARY_TIMEFRAME=1h
+CONFLUENCE_THRESHOLD=82
+BASE_RISK_PCT=1.0
+EOF
+
+───────────────────────────────────────────────────────────
+PROMPT 6: Test Bot
+───────────────────────────────────────────────────────────
+cd /opt/quantalpha && source venv/bin/activate && timeout 15 python3 run_trading_bot.py || true
+
+───────────────────────────────────────────────────────────
+PROMPT 7: Create Service Part 1
+───────────────────────────────────────────────────────────
+cat > /etc/systemd/system/quantalpha.service << 'EOF'
+[Unit]
+Description=QuantAlpha Trading Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/quantalpha
+Environment="PATH=/opt/quantalpha/venv/bin"
+ExecStart=/opt/quantalpha/venv/bin/python3 /opt/quantalpha/run_trading_bot.py
+Restart=always
+RestartSec=10
+EOF
+
+───────────────────────────────────────────────────────────
+PROMPT 8: Create Service Part 2
+───────────────────────────────────────────────────────────
+cat >> /etc/systemd/system/quantalpha.service << 'EOF'
+StandardOutput=append:/opt/quantalpha/logs/bot.log
+StandardError=append:/opt/quantalpha/logs/bot_error.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+───────────────────────────────────────────────────────────
+PROMPT 9: Start Service
+───────────────────────────────────────────────────────────
+systemctl daemon-reload && systemctl enable quantalpha && systemctl start quantalpha && sleep 5 && systemctl status quantalpha
+
+───────────────────────────────────────────────────────────
+PROMPT 10: Check Logs
+───────────────────────────────────────────────────────────
+journalctl -u quantalpha -n 30 --no-pager
+
+───────────────────────────────────────────────────────────
+✅ DONE! Test in Telegram: /status to @multipiller_bot
+───────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════
+MANAGEMENT COMMANDS (After Deployment)
+═══════════════════════════════════════════════════════════
+
+Check Status:
+systemctl status quantalpha
+
+View Logs:
+journalctl -u quantalpha -f
+
+Restart:
+systemctl restart quantalpha
+
+Stop:
+systemctl stop quantalpha
+
+═══════════════════════════════════════════════════════════

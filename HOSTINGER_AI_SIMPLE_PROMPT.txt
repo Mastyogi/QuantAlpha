@@ -1,0 +1,67 @@
+I need to deploy a Python trading bot on this VPS. Please help me with these steps:
+
+1. UPDATE SYSTEM & INSTALL DEPENDENCIES:
+apt update && apt upgrade -y
+apt install -y python3 python3-pip python3-venv git build-essential libssl-dev libffi-dev python3-dev htop curl
+
+2. CREATE DIRECTORIES:
+mkdir -p /opt/quantalpha/{logs,models,reports}
+chmod 755 /opt/quantalpha
+
+3. SETUP VIRTUAL ENVIRONMENT (after I upload files):
+cd /opt/quantalpha
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+4. CREATE .ENV FILE at /opt/quantalpha/.env with this content:
+BOT_NAME=QuantAlpha
+EXCHANGE_NAME=bitget
+EXCHANGE_API_KEY=bg_24b5d72feb434de76d28b3b97b0a6b52
+EXCHANGE_SECRET=53caeab8cb8733c84e7c29075911176d32468edf1593505c741412cb8332c30b
+EXCHANGE_PASSPHRASE=fixswingproduceclevererasesucces
+TRADING_MODE=paper
+TESTNET=false
+TELEGRAM_BOT_TOKEN=8619104592:AAEjVGp9eRpphPoP9bhqxMboVf_A-UdXX_M
+TELEGRAM_ADMIN_CHAT_ID=7263314996
+DATABASE_URL=postgresql+asyncpg://postgres:Rahul%40639228@db.ycmhzbctijkgpwjfloxk.supabase.co:5432/postgres
+REDIS_URL=redis://localhost:6379/0
+SECRET_KEY=Hf8R2LSsIrdNtVm0uPiaq1wEg6CUkMDGABKO9YeJvzZy35lQhp4oX7njcTFbxW
+LOG_LEVEL=INFO
+PAIRS=BTC/USDT,ETH/USDT,SOL/USDT
+PRIMARY_TIMEFRAME=1h
+CONFLUENCE_THRESHOLD=82
+BASE_RISK_PCT=1.0
+
+5. CREATE SYSTEMD SERVICE at /etc/systemd/system/quantalpha.service:
+[Unit]
+Description=QuantAlpha Trading Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/quantalpha
+Environment="PATH=/opt/quantalpha/venv/bin"
+ExecStart=/opt/quantalpha/venv/bin/python3 /opt/quantalpha/run_trading_bot.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/opt/quantalpha/logs/bot.log
+StandardError=append:/opt/quantalpha/logs/bot_error.log
+
+[Install]
+WantedBy=multi-user.target
+
+6. START SERVICE:
+systemctl daemon-reload
+systemctl enable quantalpha
+systemctl start quantalpha
+systemctl status quantalpha
+
+7. VERIFY:
+journalctl -u quantalpha -f
+
+Expected output: "BOT IS RUNNING!" and "Telegram polling started"
+
+Please execute these steps and let me know if any errors occur.

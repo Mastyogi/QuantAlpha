@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AlphaBot Dashboard</title>
+  <meta http-equiv="refresh" content="30">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0e1a;--bg2:#0f1525;--card:#151d2e;
+      --border:rgba(255,255,255,0.07);
+      --accent:#00d4aa;--accent2:#6366f1;
+      --text:#e2e8f0;--muted:#64748b;
+      --danger:#ef4444;--success:#22c55e;--warn:#f59e0b;
+      --font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    }
+    body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px}
+    a{color:inherit;text-decoration:none}
+
+    /* ── Sidebar ── */
+    .layout{display:flex;min-height:100vh}
+    .sidebar{
+      width:220px;background:var(--bg2);border-right:1px solid var(--border);
+      padding:1.5rem 1rem;display:flex;flex-direction:column;
+      position:fixed;top:0;left:0;bottom:0;
+    }
+    .sidebar-logo{
+      display:flex;align-items:center;gap:0.6rem;
+      font-size:1.1rem;font-weight:800;margin-bottom:2rem;
+    }
+    .sidebar-logo-icon{
+      width:32px;height:32px;border-radius:8px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;font-size:1rem;
+    }
+    .nav-item{
+      display:flex;align-items:center;gap:0.6rem;
+      padding:0.6rem 0.75rem;border-radius:8px;
+      color:var(--muted);font-weight:500;margin-bottom:0.25rem;
+      transition:background 0.15s,color 0.15s;cursor:pointer;
+    }
+    .nav-item:hover,.nav-item.active{background:rgba(255,255,255,0.05);color:var(--text)}
+    .nav-item.active{color:var(--accent)}
+    .sidebar-spacer{flex:1}
+    .sidebar-user{
+      padding:0.75rem;background:var(--card);border-radius:10px;
+      border:1px solid var(--border);
+    }
+    .user-info{display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem}
+    .user-avatar{
+      width:32px;height:32px;border-radius:50%;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:700;color:#000;
+      overflow:hidden;
+    }
+    .user-avatar img{width:100%;height:100%;object-fit:cover}
+    .user-name{font-weight:600;font-size:0.85rem}
+    .user-email{font-size:0.7rem;color:var(--muted)}
+    .logout-btn{
+      width:100%;padding:0.4rem;background:transparent;
+      border:1px solid var(--border);color:var(--muted);border-radius:6px;
+      cursor:pointer;font-size:0.75rem;transition:all 0.15s;
+    }
+    .logout-btn:hover{border-color:var(--danger);color:var(--danger)}
+
+    /* ── Main content ── */
+    .main{margin-left:220px;flex:1;padding:1.5rem}
+
+    /* ── Top bar ── */
+    .topbar{
+      display:flex;justify-content:space-between;align-items:center;
+      margin-bottom:1.5rem;
+    }
+    .topbar h1{font-size:1.3rem;font-weight:700}
+    .bot-status{
+      display:flex;align-items:center;gap:0.5rem;
+      background:var(--card);border:1px solid var(--border);
+      padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;
+    }
+    .status-dot{width:8px;height:8px;border-radius:50%}
+    .status-dot.running{background:var(--success);animation:pulse 2s infinite}
+    .status-dot.paused{background:var(--warn)}
+    .status-dot.error{background:var(--danger)}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+    /* ── Metric cards ── */
+    .metrics-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem}
+    .metric-card{
+      background:var(--card);border:1px solid var(--border);border-radius:14px;
+      padding:1.25rem;
+    }
+    .metric-label{color:var(--muted);font-size:0.75rem;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.05em}
+    .metric-val{font-size:1.6rem;font-weight:800}
+    .metric-sub{font-size:0.75rem;margin-top:0.2rem}
+    .green{color:var(--success)}.red{color:var(--danger)}.yellow{color:var(--warn)}
+
+    /* ── Tables ── */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.5rem}
+    .card-title{font-weight:700;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
+    .card-title span{font-size:0.75rem;color:var(--muted);font-weight:400}
+    table{width:100%;border-collapse:collapse}
+    th{text-align:left;font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:0.5rem;border-bottom:1px solid var(--border)}
+    td{padding:0.6rem 0 0.6rem;border-bottom:1px solid rgba(255,255,255,0.03);font-size:0.83rem}
+    tr:last-child td{border-bottom:none}
+    .badge{display:inline-flex;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.7rem;font-weight:600}
+    .badge-buy{background:rgba(34,197,94,.15);color:var(--success)}
+    .badge-sell{background:rgba(239,68,68,.15);color:var(--danger)}
+    .badge-neutral{background:rgba(100,116,139,.15);color:var(--muted)}
+    .badge-active{background:rgba(0,212,170,.15);color:var(--accent)}
+
+    /* ── Charts row ── */
+    .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem}
+    canvas{width:100%;height:120px;display:block}
+
+    /* ── Instruments grid ── */
+    .instruments-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.75rem}
+    .instrument-chip{
+      background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+      padding:0.75rem;display:flex;flex-direction:column;gap:0.3rem;
+    }
+    .instrument-chip .sym{font-weight:700;font-size:0.85rem}
+    .instrument-chip .price{font-size:1rem;font-weight:600}
+    .instrument-chip .change{font-size:0.72rem}
+    .instrument-chip .asset-class{
+      font-size:0.65rem;text-transform:uppercase;letter-spacing:.05em;
+      color:var(--muted);
+    }
+    @media(max-width:768px){.charts-row{grid-template-columns:1fr}.sidebar{display:none}.main{margin-left:0}}
+  </style>
+</head>
+<body>
+<div class="layout">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">📈</div>
+    AlphaBot
+  </div>
+  <a href="/dashboard" class="nav-item active">📊 Dashboard</a>
+  <a href="/dashboard/signals" class="nav-item">⚡ Signals</a>
+  <a href="/dashboard/trades" class="nav-item">💼 Trades</a>
+  <a href="/dashboard/pnl" class="nav-item">💰 P&amp;L</a>
+  <a href="/dashboard/risk" class="nav-item">🛡️ Risk</a>
+  <a href="/dashboard/markets" class="nav-item">🌍 Markets</a>
+  <a href="/dashboard/settings" class="nav-item">⚙️ Settings</a>
+  <div class="sidebar-spacer"></div>
+  <div class="sidebar-user">
+    <div class="user-info">
+      <div class="user-avatar">
+        {% if user.picture %}
+        <img src="{{ user.picture }}" alt="avatar" onerror="this.style.display='none'"/>
+        {% else %}
+        {{ user.name[0].upper() if user.name else 'U' }}
+        {% endif %}
+      </div>
+      <div>
+        <div class="user-name">{{ user.name or 'Trader' }}</div>
+        <div class="user-email">{{ user.email }}</div>
+      </div>
+    </div>
+    <a href="/auth/logout"><button class="logout-btn">Sign out</button></a>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <h1>Trading Dashboard</h1>
+    <div class="bot-status">
+      <div class="status-dot {{ 'running' if bot_state == 'SCANNING' or bot_state == 'READY' else 'paused' }}"></div>
+      Bot: <strong>{{ bot_state }}</strong>
+      &nbsp;·&nbsp; Mode: <strong>{{ trading_mode.upper() }}</strong>
+      &nbsp;·&nbsp; {{ last_updated }}
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-label">Account Equity</div>
+      <div class="metric-val">${{ "%.2f"|format(equity) }}</div>
+      <div class="metric-sub {{ 'green' if daily_pnl >= 0 else 'red' }}">
+        {{ '+' if daily_pnl >= 0 else '' }}${{ "%.2f"|format(daily_pnl) }} today
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Open Positions</div>
+      <div class="metric-val">{{ open_positions }}</div>
+      <div class="metric-sub" style="color:var(--muted)">max {{ max_positions }}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Win Rate</div>
+      <div class="metric-val {{ 'green' if win_rate >= 50 else 'red' }}">{{ "%.1f"|format(win_rate) }}%</div>
+      <div class="metric-sub" style="color:var(--muted)">{{ total_trades }} total trades</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Max Drawdown</div>
+      <div class="metric-val {{ 'red' if max_drawdown > 10 else 'yellow' if max_drawdown > 5 else 'green' }}">
+        -{{ "%.2f"|format(max_drawdown) }}%
+      </div>
+      <div class="metric-sub" style="color:var(--muted)">limit: 15%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Signals Today</div>
+      <div class="metric-val">{{ signals_today }}</div>
+      <div class="metric-sub" style="color:var(--muted)">{{ buy_signals }}▲ {{ sell_signals }}▼</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Active Markets</div>
+      <div class="metric-val">{{ active_instruments }}</div>
+      <div class="metric-sub" style="color:var(--muted)">crypto + forex + comm.</div>
+    </div>
+  </div>
+
+  <!-- Equity chart + Drawdown -->
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-title">Equity Curve <span>last 30 sessions</span></div>
+      <canvas id="equityChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Signal Distribution <span>last 100</span></div>
+      <canvas id="signalChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Recent signals -->
+  <div class="card">
+    <div class="card-title">Recent Signals <span>auto-refresh every 30s</span></div>
+    {% if signals %}
+    <table>
+      <thead><tr><th>Symbol</th><th>Direction</th><th>Strength</th><th>AI Conf.</th><th>Strategy</th><th>Time</th></tr></thead>
+      <tbody>
+      {% for s in signals %}
+      <tr>
+        <td><strong>{{ s.symbol }}</strong></td>
+        <td><span class="badge badge-{{ s.direction.lower() }}">{{ s.direction }}</span></td>
+        <td>{{ "%.1f"|format(s.signal_strength * 100 if s.signal_strength <= 1 else s.signal_strength) }}%</td>
+        <td class="{{ 'green' if s.ai_confidence >= 0.7 else 'yellow' }}">{{ "%.1f"|format(s.ai_confidence * 100) }}%</td>
+        <td style="color:var(--muted)">{{ s.strategy_name }}</td>
+        <td style="color:var(--muted)">{{ s.created_at }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--muted);text-align:center;padding:2rem 0">No signals yet — bot is warming up</p>
+    {% endif %}
+  </div>
+
+  <!-- Open positions -->
+  <div class="card">
+    <div class="card-title">Open Positions</div>
+    {% if positions %}
+    <table>
+      <thead><tr><th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Current</th><th>SL</th><th>TP</th><th>P&amp;L</th></tr></thead>
+      <tbody>
+      {% for p in positions %}
+      <tr>
+        <td><strong>{{ p.symbol }}</strong></td>
+        <td><span class="badge badge-{{ p.side }}">{{ p.side.upper() }}</span></td>
+        <td>${{ "%.0f"|format(p.size) }}</td>
+        <td>{{ "%.4f"|format(p.entry_price) if p.entry_price < 10 else "%.2f"|format(p.entry_price) }}</td>
+        <td>{{ "%.4f"|format(p.current_price) if p.current_price < 10 else "%.2f"|format(p.current_price) }}</td>
+        <td class="red">{{ "%.4f"|format(p.stop_loss) if p.stop_loss < 10 else "%.2f"|format(p.stop_loss) }}</td>
+        <td class="green">{{ "%.4f"|format(p.take_profit) if p.take_profit < 10 else "%.2f"|format(p.take_profit) }}</td>
+        <td class="{{ 'green' if p.unrealized_pnl >= 0 else 'red' }}">
+          {{ '+' if p.unrealized_pnl >= 0 else '' }}${{ "%.2f"|format(p.unrealized_pnl) }}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--muted);text-align:center;padding:2rem 0">No open positions</p>
+    {% endif %}
+  </div>
+
+  <!-- Markets overview -->
+  <div class="card">
+    <div class="card-title">Market Prices <span>simulated / paper</span></div>
+    <div class="instruments-grid">
+      {% for inst in market_prices %}
+      <div class="instrument-chip">
+        <div class="sym">{{ inst.symbol }}</div>
+        <div class="price">{{ "%.4f"|format(inst.price) if inst.price < 100 else "%.2f"|format(inst.price) }}</div>
+        <div class="change {{ 'green' if inst.change >= 0 else 'red' }}">
+          {{ '+' if inst.change >= 0 else '' }}{{ "%.2f"|format(inst.change) }}%
+        </div>
+        <div class="asset-class">{{ inst.asset_class }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Risk panel -->
+  <div class="card">
+    <div class="card-title">Risk Monitor</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem">
+      <div>
+        <div style="color:var(--muted);font-size:0.75rem;margin-bottom:0.3rem">Circuit Breaker</div>
+        <div class="{{ 'red' if circuit_breaker else 'green' }}" style="font-weight:700">
+          {{ '🔴 TRIGGERED' if circuit_breaker else '🟢 OK' }}
+        </div>
+      </div>
+      <div>
+        <div style="color:var(--muted);font-size:0.75rem;margin-bottom:0.3rem">Daily P&L vs Limit</div>
+        <div class="{{ 'red' if daily_pnl < -daily_loss_limit else 'green' }}" style="font-weight:700">
+          ${{ "%.2f"|format(daily_pnl) }} / -${{ "%.0f"|format(daily_loss_limit) }}
+        </div>
+      </div>
+      <div>
+        <div style="color:var(--muted);font-size:0.75rem;margin-bottom:0.3rem">Drawdown</div>
+        <div class="{{ 'red' if max_drawdown > 10 else 'yellow' if max_drawdown > 5 else 'green' }}" style="font-weight:700">
+          -{{ "%.2f"|format(max_drawdown) }}% / -15.00%
+        </div>
+      </div>
+      <div>
+        <div style="color:var(--muted);font-size:0.75rem;margin-bottom:0.3rem">Max Position Size</div>
+        <div style="font-weight:700">2.00% of equity</div>
+      </div>
+      <div>
+        <div style="color:var(--muted);font-size:0.75rem;margin-bottom:0.3rem">AI Confidence Threshold</div>
+        <div style="font-weight:700">70%</div>
+      </div>
+      <div>
+        <div style="color:var(--muted);font-size:0.75rem;margin-bottom:0.3rem">Min R:R Ratio</div>
+        <div style="font-weight:700">1.5 : 1</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+// ── Equity curve chart ────────────────────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('equityChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const data = {{ equity_history | tojson }};
+  if (!data || data.length < 2) return;
+  const W = canvas.offsetWidth || 400;
+  const H = 120;
+  canvas.width = W * (window.devicePixelRatio||1);
+  canvas.height = H * (window.devicePixelRatio||1);
+  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
+
+  const min = Math.min(...data) * 0.999;
+  const max = Math.max(...data) * 1.001;
+  const sx = i => (i / (data.length - 1)) * W;
+  const sy = v => H - ((v - min) / (max - min)) * H;
+
+  const color = data[data.length-1] >= data[0] ? '#22c55e' : '#ef4444';
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, color.replace(')', ',0.2)').replace('rgb', 'rgba'));
+  grad.addColorStop(1, color.replace(')', ',0)').replace('rgb', 'rgba'));
+
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  data.forEach((v,i) => ctx.lineTo(sx(i), sy(v)));
+  ctx.lineTo(W, H); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  ctx.beginPath();
+  data.forEach((v,i) => i===0 ? ctx.moveTo(sx(i),sy(v)) : ctx.lineTo(sx(i),sy(v)));
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+})();
+
+// ── Signal distribution donut ─────────────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('signalChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const buy = {{ buy_signals }};
+  const sell = {{ sell_signals }};
+  const neutral = Math.max(0, {{ signals_today }} - buy - sell);
+  const total = buy + sell + neutral || 1;
+  const W = canvas.offsetWidth || 300;
+  const H = 120;
+  canvas.width = W * (window.devicePixelRatio||1);
+  canvas.height = H * (window.devicePixelRatio||1);
+  ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
+
+  const cx = W/2, cy = H/2, r = Math.min(cx,cy) - 10, ir = r * 0.6;
+  const segments = [
+    {v: buy,     c: '#22c55e', label: 'BUY'},
+    {v: sell,    c: '#ef4444', label: 'SELL'},
+    {v: neutral, c: '#64748b', label: 'NEUTRAL'},
+  ];
+  let angle = -Math.PI/2;
+  segments.forEach(s => {
+    if (!s.v) return;
+    const end = angle + (s.v / total) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, angle, end);
+    ctx.arc(cx, cy, ir, end, angle, true);
+    ctx.closePath();
+    ctx.fillStyle = s.c; ctx.fill();
+    angle = end;
+  });
+
+  ctx.fillStyle = '#0a0e1a';
+  ctx.beginPath(); ctx.arc(cx, cy, ir - 1, 0, 2*Math.PI); ctx.fill();
+
+  ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'center'; ctx.font = 'bold 14px sans-serif';
+  ctx.fillText(total, cx, cy + 5);
+  ctx.font = '10px sans-serif'; ctx.fillStyle = '#64748b';
+  ctx.fillText('total', cx, cy + 18);
+})();
+</script>
+</body>
+</html>
