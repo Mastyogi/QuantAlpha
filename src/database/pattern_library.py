@@ -241,7 +241,29 @@ class PatternLibrary:
         logger.info(f"Imported {imported_count}/{len(data)} patterns from {input_path}")
         return imported_count
     
-    async def get_pattern_statistics(self) -> Dict:
+    async def get_statistics(self) -> Dict:
+        """Get overall pattern library statistics (alias for get_pattern_statistics)."""
+        return await self.get_pattern_statistics()
+
+    async def get_top_patterns(self, limit: int = 10, market_regime: Optional[str] = None) -> List[TradingPattern]:
+        """Get top performing patterns (delegates to query engine)."""
+        return await self.query_engine.get_top_patterns(limit=limit, market_regime=market_regime)
+
+    async def activate_pattern(self, pattern_id: str) -> bool:
+        """Activate a pattern."""
+        try:
+            await self.repository.update_pattern_status(pattern_id=pattern_id, status="active", reason="Manual activation")
+            return True
+        except Exception:
+            return False
+
+    async def deactivate_pattern(self, pattern_id: str) -> bool:
+        """Deactivate a pattern."""
+        try:
+            await self.repository.update_pattern_status(pattern_id=pattern_id, status="inactive", reason="Manual deactivation")
+            return True
+        except Exception:
+            return False
         """Get overall pattern library statistics."""
         all_patterns = await self.repository.get_active_patterns(min_win_rate=0.0)
         active_patterns = [p for p in all_patterns if p.status == "active"]

@@ -1,4 +1,5 @@
 from src.utils.logger import get_logger
+import os
 
 # Load .env to ensure TELEGRAM_BOT_TOKEN is available
 try:
@@ -8,6 +9,12 @@ try:
     load_dotenv(dotenv_path=env_path)
 except:
     pass
+
+# Import settings safely
+try:
+    from config.settings import settings
+except Exception:
+    settings = None
 
 logger = get_logger(__name__)
 
@@ -416,23 +423,32 @@ async def handle_performance(update, context, engine):
     try:
         await update.message.reply_text("📊 Fetching performance stats...")
         
-        # Get compounding stats from order manager
         if hasattr(engine, 'order_manager'):
-            stats = await engine.order_manager.get_compounding_stats()
-            
-            if stats.get('enabled'):
+            try:
+                stats = await engine.order_manager.get_compounding_stats()
+                if stats.get('enabled'):
+                    text = (
+                        "💰 *COMPOUNDING PERFORMANCE*\n\n"
+                        f"Initial Equity: `${stats['initial_equity']:,.2f}`\n"
+                        f"Current Equity: `${stats['current_equity']:,.2f}`\n"
+                        f"Total Return: `{stats['total_return_pct']:+.2f}%`\n"
+                        f"Open Positions: `{stats['open_positions']}`\n"
+                        f"Portfolio Heat: `{stats['portfolio_heat_pct']:.2f}%`"
+                    )
+                else:
+                    text = "⚠️ Compounding is disabled"
+            except Exception:
+                # Fallback to paper stats if DB unavailable
+                paper_stats = engine.order_manager.get_paper_stats()
                 text = (
-                    "💰 *COMPOUNDING PERFORMANCE*\n\n"
-                    f"Initial Equity: `${stats['initial_equity']:,.2f}`\n"
-                    f"Current Equity: `${stats['current_equity']:,.2f}`\n"
-                    f"Total Return: `{stats['total_return_pct']:+.2f}%`\n"
-                    f"Annualized Return: `{stats['annualized_return_pct']:+.2f}%`\n"
-                    f"Monthly Rate: `{stats['monthly_compounding_rate']:+.2f}%`\n\n"
-                    f"Open Positions: `{stats['open_positions']}`\n"
-                    f"Portfolio Heat: `{stats['portfolio_heat_pct']:.2f}%`"
+                    "💰 *PERFORMANCE (Paper Mode)*\n\n"
+                    f"Equity: `${paper_stats.get('equity', 10000):,.2f}`\n"
+                    f"Total PnL: `${paper_stats.get('total_pnl', 0):+.2f}`\n"
+                    f"Win Rate: `{paper_stats.get('win_rate', 0):.1f}%`\n"
+                    f"Total Trades: `{paper_stats.get('total_trades', 0)}`\n"
+                    f"Open Positions: `{paper_stats.get('open_positions', 0)}`\n\n"
+                    f"_Note: Database offline, showing local stats_"
                 )
-            else:
-                text = "⚠️ Compounding is disabled"
         else:
             text = "❌ Order manager not available"
         
@@ -624,7 +640,8 @@ async def handle_tune(update, context, engine):
     try:
         # Check if user is admin
         user_id = str(update.effective_user.id)
-        admin_ids = [str(settings.telegram_admin_chat_id)]
+        admin_chat_id = os.getenv('TELEGRAM_ADMIN_CHAT_ID', '0')
+        admin_ids = [str(admin_chat_id)]
         
         if user_id not in admin_ids:
             await update.message.reply_text(
@@ -698,7 +715,8 @@ async def handle_pattern_off(update, context, engine):
     try:
         # Check if user is admin
         user_id = str(update.effective_user.id)
-        admin_ids = [str(settings.telegram_admin_chat_id)]
+        admin_chat_id = os.getenv('TELEGRAM_ADMIN_CHAT_ID', '0')
+        admin_ids = [str(admin_chat_id)]
         
         if user_id not in admin_ids:
             await update.message.reply_text(
@@ -745,7 +763,8 @@ async def handle_pattern_on(update, context, engine):
     try:
         # Check if user is admin
         user_id = str(update.effective_user.id)
-        admin_ids = [str(settings.telegram_admin_chat_id)]
+        admin_chat_id = os.getenv('TELEGRAM_ADMIN_CHAT_ID', '0')
+        admin_ids = [str(admin_chat_id)]
         
         if user_id not in admin_ids:
             await update.message.reply_text(
@@ -792,39 +811,38 @@ async def handle_regime(update, context, engine):
     try:
         await update.message.reply_text("🔍 Detecting market regimes...")
         
-        from src.signals.regime_detector import RegimeDetector
-        from src.data.data_fetcher import DataFetcher
+        from src.signals.regime_detector import MarketRegimeDetector
         
-        regime_detector = RegimeDetector()
-        data_fetcher = DataFetcher(engine.exchange)
+        regime_detector = MarketRegimeDetector()
         
         text = "📊 *MARKET REGIMES*\n\n"
         
+        trading_pairs = os.getenv('PAIRS', 'BTC/USDT,ETH/USDT').split(',')
+        
         # Check regime for each trading pair
-        for symbol in settings.trading_pairs[:10]:  # Limit to 10 pairs
+        for symbol in trading_pairs[:6]:
             try:
-                df = await data_fetcher.get_dataframe(symbol, "1h", limit=100)
-                
-                if df is not None and len(df) >= 50:
-                    regime = await regime_detector.detect_regime(df, symbol)
-                    
-                    # Regime emoji
-                    regime_emoji = {
-                        "TRENDING": "📈",
-                        "RANGING": "↔️",
-                        "BREAKOUT": "🚀",
-                        "VOLATILE": "⚡",
-                        "DEAD": "💤"
-                    }
-                    
-                    emoji = regime_emoji.get(regime, "❓")
-                    text += f"{emoji} {symbol}: `{regime}`\n"
+                symbol = symbol.strip()
+                # Get data from exchange client
+                if hasattr(engine, 'exchange_client'):
+                    df = await engine.exchange_client.fetch_ohlcv(symbol, "1h", limit=100)
                 else:
-                    text += f"❓ {symbol}: `UNKNOWN`\n"
+                    df = None
+                
+                if df is not None and len(df) >= 30:
+                    result = regime_detector.detect(df)
+                    regime_emoji = {
+                        "TRENDING": "📈", "RANGING": "↔️",
+                        "BREAKOUT": "🚀", "VOLATILE": "⚡", "DEAD": "💤"
+                    }
+                    emoji = regime_emoji.get(result.regime, "❓")
+                    text += f"{emoji} `{symbol}`: *{result.regime}* ({result.confidence:.0%})\n"
+                else:
+                    text += f"❓ `{symbol}`: `INSUFFICIENT DATA`\n"
             
             except Exception as e:
                 logger.warning(f"Regime detection failed for {symbol}: {e}")
-                text += f"❌ {symbol}: `ERROR`\n"
+                text += f"❌ `{symbol}`: `ERROR`\n"
         
         await update.message.reply_text(text, parse_mode="Markdown")
     
