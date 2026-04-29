@@ -143,8 +143,8 @@ class BotEngineV2:
         asyncio.create_task(self.profit_booking_engine.start_monitoring())
         logger.info("✅ Profit booking engine started")
         
-        # Start self-improvement engine daily loop
-        asyncio.create_task(self.self_improvement_engine.start_daily_loop())
+        # Start self-improvement engine
+        await self.self_improvement_engine.start()
         logger.info("✅ Self-improvement engine started")
         
         # Start auto-tuning weekly scheduler

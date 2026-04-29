@@ -151,7 +151,7 @@ class FineTunedSignalEngine:
 
     # ── Main analysis method ──────────────────────────────────────────────────
 
-    def analyze(
+    async def analyze(
         self,
         symbol: str,
         df_1h: pd.DataFrame,
@@ -176,10 +176,9 @@ class FineTunedSignalEngine:
         from src.signals.regime_detector import MarketRegimeDetector, Regime
         regime_detector = MarketRegimeDetector()
         
-        import asyncio
         try:
             # Run regime detection asynchronously
-            regime = asyncio.run(regime_detector.detect_regime(df_1h, symbol))
+            regime = await regime_detector.detect_regime(df_1h, symbol)
         except Exception as e:
             logger.warning(f"Regime detection failed: {e}, defaulting to RANGING")
             regime = Regime.RANGING
@@ -206,11 +205,15 @@ class FineTunedSignalEngine:
 
         # ── Step 3: AI prediction ─────────────────────────────────────────────
         ai_dir, ai_conf, ai_reason = model.predict(X_latest)
+        direction = force_direction or ("BUY" if ai_dir == 1 else "SELL")
+        
+        # PIPELINE CHECK: Confirm AI is working with real features
+        logger.info(f"AI Prediction for {symbol}: Direction={direction}, Confidence={ai_conf:.4f}, Reason={ai_reason}")
+        print(f">>> [PIPELINE CHECK] {symbol} prediction: {direction} (conf={ai_conf:.2f})")
+
         if ai_dir == 0:
             return self._rejected(symbol, ts,
                                   f"ai_no_signal (conf={ai_conf:.2f})")
-
-        direction = force_direction or ("BUY" if ai_dir == 1 else "SELL")
         
         # ── Step 3.5: Regime-based signal filtering ───────────────────────────
         if regime == Regime.RANGING:

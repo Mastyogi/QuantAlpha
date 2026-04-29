@@ -102,29 +102,30 @@ class ExchangeClient:
                     "apiKey": settings.exchange_api_key or "paper_key",
                     "secret": settings.exchange_api_secret or "paper_secret",
                     "password": getattr(settings, "exchange_passphrase", None),  # For Bitget
-                    "sandbox": True, 
+                    "sandbox": False, # Use real market data even for paper trading 
                     "enableRateLimit": True,
                     "options": {"defaultType": "spot"},
                 })
+                
+                if not settings.exchange_api_key or settings.exchange_api_key == "paper_key":
+                    if settings.trading_mode == "live":
+                        raise ExchangeError("Real API key required for LIVE mode")
             except Exception as e:
+                if settings.trading_mode in ["live", "paper"]:
+                    raise ExchangeError(f"Critical exchange initialization failure: {e}")
                 logger.warning(f"Exchange initialization failed: {e}")
                 self._exchange = None
         else:
-            exchange_class = getattr(ccxt, settings.exchange_name, None)
-            if exchange_class is None:
-                raise ExchangeError(f"Unknown exchange: {settings.exchange_name}")
-            self._exchange = exchange_class({
-                "apiKey": settings.exchange_api_key,
-                "secret": settings.exchange_api_secret,
-                "sandbox": settings.exchange_testnet,
-                "enableRateLimit": True,
-            })
+            # Other modes (mock/sim)
+            self._exchange = None
 
         if self._exchange:
             try:
                 await self._exchange.load_markets()
                 logger.info(f"Exchange markets loaded: {settings.exchange_name}")
             except Exception as e:
+                if settings.trading_mode in ["live", "paper"]:
+                    raise ExchangeError(f"Exchange offline - critical failure in {settings.trading_mode} mode: {e}")
                 logger.warning(f"Exchange offline (using simulator): {e}")
                 self._exchange = None  # fall back to simulator
 
@@ -170,18 +171,63 @@ class ExchangeClient:
 
     async def place_order(self, symbol: str, side: str, notional_usd: float,
                           stop_loss: float = 0.0, take_profit: float = 0.0) -> Dict:
-        """Paper order — returns simulated fill."""
-        if self._exchange is None or settings.trading_mode == "paper":
+        """Paper order — returns simulated fill using REAL market price."""
+        if settings.trading_mode == "paper":
+            ticker = await self.fetch_ticker(symbol)
+            price = ticker["ask"] if side == "buy" else ticker["bid"]
+            amount = notional_usd / price if price > 0 else 0
+            
+            from src.utils.time_utils import utcnow
+            logger.info(f"✨ [PAPER ORDER] {side.upper()} {amount:.6f} {symbol} at ${price:,.2f}")
+            
+            return {
+                "id": f"paper_{uuid.uuid4().hex[:8]}",
+                "symbol": symbol,
+                "side": side,
+                "amount": amount,
+                "price": price,
+                "status": "closed",
+                "timestamp": int(utcnow().timestamp() * 1000),
+                "type": "market",
+                "filled": amount,
+                "cost": notional_usd,
+                "stop_loss": stop_loss,
+                "take_profit": take_profit
+            }
+        
+        if self._exchange is None:
             ticker = _SIMULATOR.fetch_ticker(symbol)
             price = ticker["ask"] if side == "buy" else ticker["bid"]
             amount = notional_usd / price if price > 0 else 0
             return _SIMULATOR.place_order(symbol, side, amount)
+            
         return self._simulate_order(symbol, side, notional_usd)
 
     async def create_market_order(self, symbol: str, side: str,
                                   amount: float, params: dict = None) -> Dict:
-        if settings.trading_mode == "paper" or self._exchange is None:
-            return self._simulate_order(symbol, side, amount)
+        if settings.trading_mode == "paper":
+            ticker = await self.fetch_ticker(symbol)
+            price = ticker["last"]
+            from src.utils.time_utils import utcnow
+            
+            logger.info(f"✨ [PAPER MARKET ORDER] {side.upper()} {amount:.6f} {symbol} at ${price:,.2f}")
+            
+            return {
+                "id": f"paper_{uuid.uuid4().hex[:8]}",
+                "symbol": symbol,
+                "side": side,
+                "amount": amount,
+                "price": price,
+                "status": "closed",
+                "timestamp": int(utcnow().timestamp() * 1000),
+                "type": "market",
+                "filled": amount,
+                "cost": amount * price
+            }
+            
+        if self._exchange is None:
+            return self._simulate_order_sync(symbol, side, amount)
+            
         try:
             return await self._exchange.create_market_order(
                 symbol, side, amount, params=params or {}
@@ -189,7 +235,7 @@ class ExchangeClient:
         except Exception as e:
             raise ExchangeError(f"create_market_order failed: {e}")
 
-    def _simulate_order(self, symbol: str, side: str, amount: float) -> Dict:
+    def _simulate_order_sync(self, symbol: str, side: str, amount: float) -> Dict:
         from src.utils.time_utils import utcnow
         return {"id": f"paper_{uuid.uuid4().hex[:8]}", "symbol": symbol,
                 "side": side, "amount": amount, "price": 0.0,

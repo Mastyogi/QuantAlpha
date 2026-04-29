@@ -168,7 +168,7 @@ class MarketScanner:
                     return None
 
                 # ── Run signal engine ─────────────────────────────────────────
-                signal = self.engine.analyze(
+                signal = await self.engine.analyze(
                     symbol=symbol,
                     df_1h=df_1h,
                     df_4h=df_4h,
