@@ -16,6 +16,29 @@ try:
 except Exception:
     settings = None
 
+# Import new user handlers
+from src.telegram.user_handlers import (
+    handle_start as handle_start_new,
+    handle_register,
+    handle_verify,
+    handle_deposit,
+    handle_withdraw,
+    handle_balance,
+    handle_referral,
+    handle_referrals,
+    handle_withdraw_ref,
+    handle_leaderboard,
+    handle_mode,
+    handle_settings,
+    handle_history,
+    handle_chart,
+    handle_alert,
+    handle_export,
+    handle_support,
+    handle_feedback,
+    handle_user_callback,
+)
+
 logger = get_logger(__name__)
 
 
@@ -42,89 +65,55 @@ def build_telegram_app(engine):
 
         app = Application.builder().token(telegram_bot_token).build()
 
-        # Bind engine to handlers
-        async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_start(update, ctx, engine)
+        # ── Helper: bind engine to handler ───────────────────────────────────
+        def _bind(fn):
+            async def _handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+                await fn(update, ctx, engine)
+            _handler.__name__ = fn.__name__
+            return _handler
 
-        async def status(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_status(update, ctx, engine)
+        # ── Core / original commands ──────────────────────────────────────────
+        app.add_handler(CommandHandler("start",   _bind(handle_start_new)))
+        app.add_handler(CommandHandler("status",  _bind(handle_status)))
+        app.add_handler(CommandHandler("pause",   _bind(handle_pause)))
+        app.add_handler(CommandHandler("resume",  _bind(handle_resume)))
+        app.add_handler(CommandHandler("pnl",     _bind(handle_pnl)))
+        app.add_handler(CommandHandler("signals", _bind(handle_signals)))
+        app.add_handler(CommandHandler("help",    _bind(handle_help)))
+        app.add_handler(CommandHandler("audit",   _bind(handle_audit)))
+        app.add_handler(CommandHandler("rollback",    _bind(handle_rollback)))
+        app.add_handler(CommandHandler("performance", _bind(handle_performance)))
+        app.add_handler(CommandHandler("patterns",    _bind(handle_patterns)))
+        app.add_handler(CommandHandler("retrain",     _bind(handle_retrain)))
+        app.add_handler(CommandHandler("optimize",    _bind(handle_optimize)))
+        app.add_handler(CommandHandler("health",      _bind(handle_health)))
+        app.add_handler(CommandHandler("tune",         _bind(handle_tune)))
+        app.add_handler(CommandHandler("tuning_status",_bind(handle_tuning_status)))
+        app.add_handler(CommandHandler("pattern_off",  _bind(handle_pattern_off)))
+        app.add_handler(CommandHandler("pattern_on",   _bind(handle_pattern_on)))
+        app.add_handler(CommandHandler("regime",       _bind(handle_regime)))
 
-        async def pause(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_pause(update, ctx, engine)
+        # ── NEW: User management & escrow commands ────────────────────────────
+        app.add_handler(CommandHandler("register",     _bind(handle_register)))
+        app.add_handler(CommandHandler("verify",       _bind(handle_verify)))
+        app.add_handler(CommandHandler("deposit",      _bind(handle_deposit)))
+        app.add_handler(CommandHandler("withdraw",     _bind(handle_withdraw)))
+        app.add_handler(CommandHandler("balance",      _bind(handle_balance)))
+        app.add_handler(CommandHandler("referral",     _bind(handle_referral)))
+        app.add_handler(CommandHandler("referrals",    _bind(handle_referrals)))
+        app.add_handler(CommandHandler("withdraw_ref", _bind(handle_withdraw_ref)))
+        app.add_handler(CommandHandler("leaderboard",  _bind(handle_leaderboard)))
+        app.add_handler(CommandHandler("mode",         _bind(handle_mode)))
+        app.add_handler(CommandHandler("settings",     _bind(handle_settings)))
+        app.add_handler(CommandHandler("history",      _bind(handle_history)))
+        app.add_handler(CommandHandler("chart",        _bind(handle_chart)))
+        app.add_handler(CommandHandler("alert",        _bind(handle_alert)))
+        app.add_handler(CommandHandler("export",       _bind(handle_export)))
+        app.add_handler(CommandHandler("support",      _bind(handle_support)))
+        app.add_handler(CommandHandler("feedback",     _bind(handle_feedback)))
 
-        async def resume(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_resume(update, ctx, engine)
-
-        async def pnl(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_pnl(update, ctx, engine)
-
-        async def signals_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_signals(update, ctx, engine)
-
-        async def help_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_help(update, ctx)
-        
-        async def audit_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_audit(update, ctx, engine)
-        
-        async def rollback_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_rollback(update, ctx, engine)
-        
-        async def performance_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_performance(update, ctx, engine)
-        
-        async def patterns_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_patterns(update, ctx, engine)
-        
-        async def retrain_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_retrain(update, ctx, engine)
-        
-        async def optimize_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_optimize(update, ctx, engine)
-        
-        async def health_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_health(update, ctx, engine)
-        
-        # ── GAP 8: New Telegram Commands ──────────────────────────────────────
-        
-        async def tune_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_tune(update, ctx, engine)
-        
-        async def tuning_status_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_tuning_status(update, ctx, engine)
-        
-        async def pattern_off_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_pattern_off(update, ctx, engine)
-        
-        async def pattern_on_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_pattern_on(update, ctx, engine)
-        
-        async def regime_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-            await handle_regime(update, ctx, engine)
-
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("status", status))
-        app.add_handler(CommandHandler("pause", pause))
-        app.add_handler(CommandHandler("resume", resume))
-        app.add_handler(CommandHandler("pnl", pnl))
-        app.add_handler(CommandHandler("signals", signals_cmd))
-        app.add_handler(CommandHandler("help", help_cmd))
-        app.add_handler(CommandHandler("audit", audit_cmd))
-        app.add_handler(CommandHandler("rollback", rollback_cmd))
-        app.add_handler(CommandHandler("performance", performance_cmd))
-        app.add_handler(CommandHandler("patterns", patterns_cmd))
-        app.add_handler(CommandHandler("retrain", retrain_cmd))
-        app.add_handler(CommandHandler("optimize", optimize_cmd))
-        app.add_handler(CommandHandler("health", health_cmd))
-        
-        # GAP 8: New command handlers
-        app.add_handler(CommandHandler("tune", tune_cmd))
-        app.add_handler(CommandHandler("tuning_status", tuning_status_cmd))
-        app.add_handler(CommandHandler("pattern_off", pattern_off_cmd))
-        app.add_handler(CommandHandler("pattern_on", pattern_on_cmd))
-        app.add_handler(CommandHandler("regime", regime_cmd))
-        
-        app.add_handler(CallbackQueryHandler(handle_callback))
+        # ── Callback query handler (inline buttons) ───────────────────────────
+        app.add_handler(CallbackQueryHandler(_bind(handle_all_callbacks)))
 
         return app
 
@@ -136,22 +125,29 @@ def build_telegram_app(engine):
         return _MockTelegramApp()
 
 
+async def handle_all_callbacks(update, context, engine=None):
+    """Route all callback queries to the right handler."""
+    query = update.callback_query
+    data = query.data or ""
+
+    # User-facing callbacks (mode_demo, deposit, balance, referral, etc.)
+    user_prefixes = ("mode_", "deposit", "balance", "referral")
+    if any(data.startswith(p) for p in user_prefixes):
+        await handle_user_callback(update, context, engine)
+        return
+
+    # Approval system callbacks
+    if data.startswith(("approve_", "reject_", "paper_")):
+        await handle_callback(update, context)
+        return
+
+    # Legacy signal callbacks
+    await handle_callback(update, context)
+
+
 async def handle_start(update, context, engine):
-    status = await engine.get_status()
-    text = (
-        "🤖 *AI Trading Bot*\n\n"
-        f"Status: `{status['state']}`\n"
-        f"Mode: `{status['mode'].upper()}`\n"
-        f"Pairs: `{', '.join(status['active_pairs'])}`\n"
-        f"Equity: `${status['equity']:,.2f}`\n\n"
-        "Commands:\n"
-        "/status — Full status\n"
-        "/signals — Recent signals\n"
-        "/pnl — P&L report\n"
-        "/pause — Pause bot\n"
-        "/resume — Resume bot"
-    )
-    await update.message.reply_text(text, parse_mode="Markdown")
+    """Legacy start handler — now delegates to new user_handlers.handle_start."""
+    await handle_start_new(update, context, engine)
 
 
 async def handle_status(update, context, engine):

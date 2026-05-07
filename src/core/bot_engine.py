@@ -105,7 +105,16 @@ class BotEngineV2:
             data_fetcher=self.fetcher,
             approval_system=self.approval_system,
         )
-        
+
+        # ── NEW: Deposit handler + Referral engine ────────────────────────────
+        from src.bridge.deposit_handler import DepositHandler
+        from src.bridge.profit_tracker import ProfitTracker
+        from src.referral.referral_engine import ReferralEngine
+
+        self.referral_engine = ReferralEngine(telegram_notifier=self.notifier)
+        self.deposit_handler = DepositHandler(telegram_notifier=self.notifier)
+        self.profit_tracker = ProfitTracker(referral_engine=self.referral_engine)
+
         self._state = "INITIALIZING"
         self._running = False
         self._paused = False
@@ -159,6 +168,22 @@ class BotEngineV2:
             telegram_notifier=self.notifier
         ))
         logger.info("✅ Health check system started")
+
+        # Start deposit handler (BSC blockchain listener)
+        await self.deposit_handler.start()
+        logger.info("✅ Deposit handler started")
+
+        # Start referral weekly payout scheduler
+        asyncio.create_task(self.referral_engine.start_weekly_scheduler())
+        logger.info("✅ Referral payout scheduler started")
+
+        # Auto-connect MT5 if live mode configured
+        if settings.trading_mode == "live" and settings.broker_mode == "mt5":
+            connected = self.order_manager.connect_mt5()
+            if connected:
+                logger.info("✅ MT5 connected for live trading")
+            else:
+                logger.warning("⚠️  MT5 connection failed — check MT5_LOGIN/PASSWORD/SERVER in .env")
         
         self._state = "READY"
         self._running = True
@@ -220,9 +245,13 @@ class BotEngineV2:
         )
         if settings.trading_mode == "paper":
             await self._execute_trade(signal)
+        elif settings.trading_mode == "live":
+            # Live mode: also execute trade (MT5 or CCXT)
+            await self._execute_trade(signal)
 
     async def _execute_trade(self, signal: FinalSignal) -> None:
         self._state = "EXECUTING"
+        is_paper = settings.trading_mode == "paper"
         try:
             setup = signal.trade_setup
             adj_risk = self.drawdown_monitor.get_adjusted_risk_pct(
@@ -231,6 +260,12 @@ class BotEngineV2:
             if adj_risk <= 0:
                 return
             size_usd = self.drawdown_monitor.current_equity * adj_risk / 100
+
+            # Auto-connect MT5 on first live trade if not connected
+            if not is_paper and settings.broker_mode == "mt5":
+                if self.order_manager._mt5 is None or not self.order_manager._mt5._connected:
+                    self.order_manager.connect_mt5()
+
             result = await self.order_manager.place_trade(
                 symbol=signal.symbol, side=signal.direction.lower(),
                 size_usd=size_usd, entry_price=setup.entry_price,
@@ -242,7 +277,7 @@ class BotEngineV2:
                 symbol=signal.symbol, side=signal.direction,
                 entry_price=setup.entry_price, stop_loss=setup.stop_loss,
                 take_profit=setup.take_profit_2, size_usd=size_usd,
-                order_id=result.get("id","paper"), is_paper=True, rr_ratio=setup.rr_ratio,
+                order_id=result.get("id","live"), is_paper=is_paper, rr_ratio=setup.rr_ratio,
             ))
             await self.event_bus.emit_trade_opened(
                 symbol=signal.symbol, side=signal.direction,
@@ -364,20 +399,33 @@ class BotEngineV2:
             logger.error(f"Pattern update failed: {e}", exc_info=True)
     
     async def _on_trade_closed_performance_track(self, event: Event) -> None:
-        """Track trade performance for self-improvement."""
+        """Track trade performance for self-improvement + trigger fee distribution."""
         try:
+            pnl = event.data.get("pnl", 0.0)
+            symbol = event.data.get("symbol")
+            trade_id = event.data.get("trade_id")
+            telegram_id = event.data.get("telegram_id")  # set if user-specific trade
+
             trade_data = {
-                "symbol": event.data.get("symbol"),
-                "pnl": event.data.get("pnl", 0.0),
+                "symbol": symbol,
+                "pnl": pnl,
                 "pnl_pct": event.data.get("pnl_pct", 0.0),
                 "entry_price": event.data.get("entry_price", 0.0),
                 "exit_price": event.data.get("exit_price", 0.0),
                 "close_reason": event.data.get("reason", "unknown"),
                 "timestamp": datetime.now(timezone.utc),
             }
-            
             await self.performance_tracker.record_trade(trade_data)
-            logger.debug(f"Trade performance recorded for {trade_data['symbol']}")
+
+            # Trigger referral fee distribution on profitable trades
+            if pnl > 0 and telegram_id and trade_id:
+                await self.profit_tracker.record_trade_profit(
+                    telegram_id=telegram_id,
+                    trade_id=trade_id,
+                    gross_profit_usdt=pnl,
+                )
+
+            logger.debug(f"Trade performance recorded for {symbol}")
         except Exception as e:
             logger.error(f"Performance tracking failed: {e}", exc_info=True)
     

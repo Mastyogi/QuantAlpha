@@ -1,7 +1,8 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, DateTime, JSON, Enum as SAEnum
+    Column, Integer, String, Float, Boolean, DateTime, JSON, Enum as SAEnum,
+    BigInteger, ForeignKey, Text, Numeric, Index
 )
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 import enum
 
@@ -267,3 +268,173 @@ class AuditLog(Base):
     
     def __repr__(self):
         return f"<AuditLog [{self.severity}] {self.event_type}: {self.message[:50]}>"
+
+
+# ============================================================================
+# User Management Models
+# ============================================================================
+
+class VerificationStatus(enum.Enum):
+    PENDING = "pending"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+
+
+class BrokerMode(enum.Enum):
+    DEMO = "demo"
+    REAL = "real"
+
+
+class User(Base):
+    """Multi-user model for Telegram bot users with FxPro broker integration."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    telegram_id = Column(BigInteger, unique=True, nullable=False, index=True)
+    username = Column(String(100))
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+
+    # Broker integration
+    broker_account = Column(String(100))          # FxPro account number
+    broker_mode = Column(SAEnum(BrokerMode), default=BrokerMode.DEMO)
+    verification_status = Column(
+        SAEnum(VerificationStatus), default=VerificationStatus.PENDING, index=True
+    )
+    verified_at = Column(DateTime(timezone=True))
+
+    # MT5 credentials (per-user, encrypted at rest via env-key)
+    mt5_login = Column(String(50))
+    mt5_password_enc = Column(String(200))        # AES-encrypted
+    mt5_server = Column(String(100))
+
+    # Referral
+    referral_code = Column(String(20), unique=True, index=True)
+    referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Escrow wallet
+    escrow_address = Column(String(100))          # BSC wallet address
+    escrow_balance_usdt = Column(Numeric(18, 8), default=0)
+    trading_balance_usdt = Column(Numeric(18, 8), default=0)
+
+    # Bot state
+    is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    trading_enabled = Column(Boolean, default=False)
+    current_mode = Column(String(10), default="paper")  # paper|demo|real
+
+    # Settings JSON
+    settings_json = Column(JSON, default=dict)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    referrals = relationship("Referral", foreign_keys="Referral.referrer_id", back_populates="referrer")
+    referral_earnings = relationship("ReferralEarning", back_populates="user")
+
+    def __repr__(self):
+        return f"<User tg={self.telegram_id} status={self.verification_status}>"
+
+
+# ============================================================================
+# Referral System Models
+# ============================================================================
+
+class Referral(Base):
+    """3-level referral chain tracking."""
+    __tablename__ = "referrals"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    referrer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    referred_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    level = Column(Integer, nullable=False)        # 1, 2, or 3
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    referrer = relationship("User", foreign_keys=[referrer_id], back_populates="referrals")
+    referred = relationship("User", foreign_keys=[referred_id])
+
+    __table_args__ = (
+        Index("ix_referral_referrer_level", "referrer_id", "level"),
+    )
+
+    def __repr__(self):
+        return f"<Referral referrer={self.referrer_id} referred={self.referred_id} L{self.level}>"
+
+
+class ReferralEarning(Base):
+    """Tracks referral earnings per user per trade."""
+    __tablename__ = "referral_earnings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    source_trade_id = Column(Integer, ForeignKey("trades.id"), nullable=True)
+    level = Column(Integer, nullable=False)        # 1, 2, or 3
+    amount_usdt = Column(Numeric(18, 8), nullable=False)
+    fee_pct = Column(Float, nullable=False)        # 2.5%, 1.5%, or 1.0%
+    status = Column(String(20), default="pending", index=True)  # pending|paid|failed
+    paid_at = Column(DateTime(timezone=True))
+    tx_hash = Column(String(100))                  # BSC transaction hash
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="referral_earnings")
+
+    def __repr__(self):
+        return f"<ReferralEarning user={self.user_id} L{self.level} ${self.amount_usdt}>"
+
+
+# ============================================================================
+# Escrow / Bridge Models
+# ============================================================================
+
+class EscrowTransaction(Base):
+    """Records all escrow deposit/withdrawal transactions."""
+    __tablename__ = "escrow_transactions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    tx_type = Column(String(20), nullable=False, index=True)  # deposit|withdrawal|fee
+    amount_usdt = Column(Numeric(18, 8), nullable=False)
+    fee_usdt = Column(Numeric(18, 8), default=0)
+    net_usdt = Column(Numeric(18, 8), nullable=False)
+
+    # Blockchain details
+    tx_hash = Column(String(100), unique=True, index=True)
+    from_address = Column(String(100))
+    to_address = Column(String(100))
+    block_number = Column(BigInteger)
+    confirmations = Column(Integer, default=0)
+
+    status = Column(String(20), default="pending", index=True)  # pending|confirmed|failed
+    error_message = Column(Text)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    confirmed_at = Column(DateTime(timezone=True))
+
+    def __repr__(self):
+        return f"<EscrowTx {self.tx_type} ${self.amount_usdt} [{self.status}]>"
+
+
+class ProfitRecord(Base):
+    """Tracks profit for fee calculation (15% service fee on profits)."""
+    __tablename__ = "profit_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    trade_id = Column(Integer, ForeignKey("trades.id"), nullable=True)
+    gross_profit_usdt = Column(Numeric(18, 8), nullable=False)
+    service_fee_usdt = Column(Numeric(18, 8), nullable=False)   # 15%
+    net_profit_usdt = Column(Numeric(18, 8), nullable=False)    # 85%
+
+    # Referral fee breakdown
+    ref_l1_fee_usdt = Column(Numeric(18, 8), default=0)         # 2.5%
+    ref_l2_fee_usdt = Column(Numeric(18, 8), default=0)         # 1.5%
+    ref_l3_fee_usdt = Column(Numeric(18, 8), default=0)         # 1.0%
+    owner_fee_usdt = Column(Numeric(18, 8), default=0)          # 10%
+
+    processed = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<ProfitRecord user={self.user_id} gross=${self.gross_profit_usdt}>"

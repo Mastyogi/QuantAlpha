@@ -69,6 +69,16 @@ class TradingBotSettings:
         self.mt5_server             = _env("MT5_SERVER", "MetaQuotes-Demo")
         self.mt5_path               = _env("MT5_PATH", "")
 
+        # ── Escrow / Bridge ───────────────────────────────────────────────────
+        self.bsc_rpc_url            = _env("BSC_RPC_URL", "https://bsc-dataseed.binance.org/")
+        self.bsc_network            = _env("BSC_NETWORK", "mainnet")
+        self.escrow_contract_address= _env("ESCROW_CONTRACT_ADDRESS", "")
+        self.usdt_contract_address  = _env("USDT_CONTRACT_ADDRESS", "0x55d398326f99059fF775485246999027B3197955")
+        self.bot_wallet_private_key = _env("BOT_WALLET_PRIVATE_KEY", "")
+        self.service_wallet_address = _env("SERVICE_WALLET_ADDRESS", "")
+        self.owner_wallet_address   = _env("OWNER_WALLET_ADDRESS", "")
+        self.secret_key             = _env("SECRET_KEY", "quantalpha-default-secret-key-32b")
+
         # ── Instrument Lists ──────────────────────────────────────────────────
         self.trading_pairs          = _env_list("TRADING_PAIRS", "BTC/USDT,ETH/USDT")
         self.forex_pairs            = _env_list("FOREX_PAIRS",   "EURUSD,GBPUSD,USDJPY")

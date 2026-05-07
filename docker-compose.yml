@@ -1,41 +1,30 @@
 services:
-  quantalpha-bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: quantalpha-bot:latest
-    container_name: quantalpha-trading-bot
+
+  # ── PostgreSQL Database ───────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: quantalpha-postgres
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      - REDIS_URL=redis://redis:6379/0
+      POSTGRES_DB: trading_bot
+      POSTGRES_USER: botuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme123}
     volumes:
-      - ./logs:/app/logs
-      - ./models:/app/models
-      - ./reports:/app/reports
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - quantalpha-network
-    depends_on:
-      redis:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      test: ["CMD-SHELL", "pg_isready -U botuser -d trading_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ── Redis Cache ───────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: quantalpha-redis
     restart: unless-stopped
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     networks:
@@ -46,12 +35,50 @@ services:
       timeout: 5s
       retries: 3
 
+  # ── QuantAlpha Bot ────────────────────────────────────────────────────────
+  quantalpha-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: quantalpha-bot:latest
+    container_name: quantalpha-trading-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://botuser:${DB_PASSWORD:-changeme123}@postgres:5432/trading_bot
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./reports:/app/reports
+      - ./data:/app/data
+    networks:
+      - quantalpha-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
 networks:
   quantalpha-network:
     driver: bridge
 
 volumes:
+  postgres_data:
+  redis_data:
   logs:
   models:
   reports:
-  redis_data:

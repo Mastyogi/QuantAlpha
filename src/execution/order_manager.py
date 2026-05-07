@@ -1,6 +1,7 @@
 from typing import Dict, Optional
 from src.data.exchange_client import ExchangeClient
 from src.execution.paper_trader import PaperTrader
+from src.execution.mt5_executor import MT5Executor
 from src.database.repositories import TradeRepository
 from src.database.models import TradeDirection, TradeStatus
 from src.risk.portfolio_compounder import PortfolioCompounder
@@ -27,11 +28,15 @@ class OrderManager:
         initial_equity: Optional[float] = None,
         enable_compounding: bool = True,
         telegram_notifier=None,
+        mt5_executor: Optional[MT5Executor] = None,
     ):
         self.exchange = exchange
         self.paper_trader = PaperTrader()
         self.trade_repo = TradeRepository()
         self.telegram_notifier = telegram_notifier
+
+        # MT5 live executor (used when TRADING_MODE=live and broker_mode=mt5)
+        self._mt5: Optional[MT5Executor] = mt5_executor
         
         # Initialize compounding system
         self.enable_compounding = enable_compounding
@@ -139,9 +144,34 @@ class OrderManager:
                 strategy_name=strategy_name,
             )
         else:
-            quantity = final_size_usd / entry_price
-            result = await self.exchange.create_market_order(symbol, side, quantity)
-            result["price"] = entry_price  # Use signal price for logging
+            # ── LIVE MODE: route to MT5 or CCXT ──────────────────────────────
+            if settings.broker_mode == "mt5" and self._mt5:
+                # Calculate lot size from USD amount
+                lot_size = self._usd_to_lots(symbol, final_size_usd, entry_price)
+                mt5_result = self._mt5.place_order(
+                    symbol=symbol,
+                    side=side,
+                    volume=lot_size,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    comment=f"QA-{strategy_name[:10]}",
+                )
+                if not mt5_result.success:
+                    raise RuntimeError(f"MT5 order failed: {mt5_result.error}")
+                result = {
+                    "id": str(mt5_result.ticket),
+                    "symbol": symbol,
+                    "side": side,
+                    "amount": lot_size,
+                    "price": mt5_result.price,
+                    "status": "open",
+                    "timestamp": int(utcnow().timestamp() * 1000),
+                }
+            else:
+                # CCXT live order
+                quantity = final_size_usd / entry_price
+                result = await self.exchange.create_market_order(symbol, side, quantity)
+                result["price"] = entry_price
 
         # Calculate risk percentage for portfolio heat tracking
         risk_pct = abs(entry_price - stop_loss) / entry_price * 100
@@ -337,3 +367,63 @@ class OrderManager:
     def get_paper_stats(self) -> Dict:
         """Get paper trading statistics."""
         return self.paper_trader.get_stats()
+
+    # ── MT5 helpers ───────────────────────────────────────────────────────────
+
+    def connect_mt5(
+        self,
+        login: Optional[int] = None,
+        password: Optional[str] = None,
+        server: Optional[str] = None,
+    ) -> bool:
+        """
+        Connect (or reconnect) the MT5 executor.
+        Uses env vars if credentials not provided.
+        """
+        if self._mt5 is None:
+            self._mt5 = MT5Executor(login=login, password=password, server=server)
+        ok = self._mt5.connect()
+        if ok:
+            logger.info("MT5 executor connected via OrderManager")
+        else:
+            logger.warning("MT5 executor failed to connect — live trades will fail")
+        return ok
+
+    def get_mt5_account_info(self):
+        """Return MT5 account info if connected."""
+        if self._mt5:
+            return self._mt5.get_account_info()
+        return None
+
+    def get_mt5_positions(self):
+        """Return open MT5 positions."""
+        if self._mt5:
+            return self._mt5.get_positions()
+        return []
+
+    @staticmethod
+    def _usd_to_lots(symbol: str, size_usd: float, price: float) -> float:
+        """
+        Convert USD position size to MT5 lot size.
+        Standard lot = 100,000 units for forex.
+        For crypto: 1 lot = 1 unit.
+        """
+        symbol_upper = symbol.upper().replace("/", "")
+        # Forex pairs: 1 standard lot = 100,000 base currency units
+        forex_pairs = {
+            "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD",
+            "USDCHF", "NZDUSD", "EURGBP", "XAUUSD", "XAGUSD",
+        }
+        if symbol_upper in forex_pairs:
+            contract_size = 100_000.0
+            # For JPY pairs, price is ~150; for others ~1
+            if "JPY" in symbol_upper:
+                lot_size = size_usd / (contract_size / price)
+            else:
+                lot_size = size_usd / (contract_size * price)
+            # Round to 2 decimal places (MT5 minimum step)
+            lot_size = max(0.01, round(lot_size, 2))
+        else:
+            # Crypto: lot = units
+            lot_size = round(size_usd / price, 6)
+        return lot_size
