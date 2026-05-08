@@ -6,7 +6,7 @@ AlphaBot supports three asset classes through a unified `BrokerClient`:
 
 | Asset Class | Instruments | Backend |
 |-------------|-------------|---------|
-| Crypto | BTC/USDT, ETH/USDT, etc. | CCXT (Binance, Bybit, OKX) |
+| Crypto | EURUSD, GBPUSD, etc. | MT5 (Binance, Bybit, OKX) |
 | Forex | EUR/USD, GBP/USD, USD/JPY, AUD/USD | MT5 (real or simulator) |
 | Commodities | XAU/USD (Gold), XAG/USD (Silver), WTI Oil | MT5 (real or simulator) |
 
@@ -21,7 +21,7 @@ realistic OHLCV data using a Geometric Brownian Motion price model.
 # .env
 ENABLE_FOREX=true
 ENABLE_COMMODITIES=true
-BROKER_MODE=paper   # Uses simulator
+BROKER_MODE=mt5   # Uses simulator
 FOREX_PAIRS=EURUSD,GBPUSD,USDJPY
 COMMODITY_PAIRS=XAUUSD,XAGUSD,USOIL
 ```

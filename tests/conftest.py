@@ -68,18 +68,24 @@ def sample_ohlcv_df_small():
 
 
 @pytest.fixture
-def mock_exchange():
-    """Mock ExchangeClient for unit tests."""
-    exchange = AsyncMock()
-    exchange.fetch_ohlcv.return_value = [
-        [1704067200000, 45000.0, 45500.0, 44500.0, 45200.0, 100.0]
-        for _ in range(200)
-    ]
-    exchange.fetch_balance.return_value = {
-        "USDT": {"total": 10000.0, "free": 10000.0, "used": 0.0}
+def mock_broker():
+    """Mock BrokerClient for unit tests."""
+    broker = AsyncMock()
+    broker.fetch_ohlcv.return_value = pd.DataFrame(
+        [
+            [45000.0, 45500.0, 44500.0, 45200.0, 100.0]
+            for _ in range(200)
+        ],
+        columns=["open", "high", "low", "close", "volume"],
+        index=pd.date_range("2024-01-01", periods=200, freq="1h", tz="UTC")
+    )
+    broker.get_account_info.return_value = {
+        "equity": 10000.0, "balance": 10000.0, "currency": "USD"
     }
-    exchange.fetch_ticker.return_value = {"last": 45200.0}
-    return exchange
+    broker.fetch_tick.return_value = {"last": 45200.0, "bid": 45195.0, "ask": 45205.0}
+    broker.initialize = AsyncMock()
+    broker.close = AsyncMock()
+    return broker
 
 
 @pytest.fixture

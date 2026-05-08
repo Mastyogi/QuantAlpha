@@ -13,6 +13,7 @@ Expected win rate: 75–82% (only high-confluence trades fire)
 """
 from __future__ import annotations
 
+import asyncio
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -31,8 +32,8 @@ logger = get_logger(__name__)
 
 # Asset class map for label tuning
 ASSET_CLASS_MAP = {
-    "BTC/USDT": "crypto", "ETH/USDT": "crypto",
-    "SOL/USDT": "crypto", "BNB/USDT": "crypto",
+    "EURUSD": "crypto", "GBPUSD": "crypto",
+    "USDJPY": "crypto", "BNB/USDT": "crypto",
     "EURUSD": "forex",    "GBPUSD": "forex",
     "USDJPY": "forex",    "AUDUSD": "forex",
     "XAUUSD": "commodity","XAGUSD": "commodity",
@@ -163,7 +164,7 @@ class FineTunedSignalEngine:
         Full pipeline: features → AI → confluence → risk → final signal.
 
         Args:
-            symbol:          e.g. "BTC/USDT" or "EURUSD"
+            symbol:          e.g. "EURUSD" or "EURUSD"
             df_1h:           Primary OHLCV DataFrame (1h), min 200 rows
             df_4h:           Higher TF (optional, improves MTF score)
             df_15m:          Lower TF (optional, for entry timing)
@@ -206,33 +207,26 @@ class FineTunedSignalEngine:
         # ── Step 3: AI prediction ─────────────────────────────────────────────
         ai_dir, ai_conf, ai_reason = model.predict(X_latest)
         direction = force_direction or ("BUY" if ai_dir == 1 else "SELL")
-        
-        # PIPELINE CHECK: Confirm AI is working with real features
-        logger.info(f"AI Prediction for {symbol}: Direction={direction}, Confidence={ai_conf:.4f}, Reason={ai_reason}")
-        print(f">>> [PIPELINE CHECK] {symbol} prediction: {direction} (conf={ai_conf:.2f})")
 
         if ai_dir == 0:
             return self._rejected(symbol, ts,
                                   f"ai_no_signal (conf={ai_conf:.2f})")
-        
+
         # ── Step 3.5: Regime-based signal filtering ───────────────────────────
         if regime == Regime.RANGING:
             # Only allow mean-reversion signals in ranging market
-            # Check if signal matches BB bounce (mean reversion)
             from src.indicators.technical import TechnicalIndicators
-            df_with_ind = TechnicalIndicators.add_all_indicators(df_1h.copy())
-            
-            if 'bb_upper' in df_with_ind.columns and 'bb_lower' in df_with_ind.columns:
-                close = df_with_ind['close'].iloc[-1]
-                bb_upper = df_with_ind['bb_upper'].iloc[-1]
-                bb_lower = df_with_ind['bb_lower'].iloc[-1]
-                
-                # Mean reversion: BUY at lower band, SELL at upper band
+            df_with_ind_tmp = TechnicalIndicators.add_all_indicators(df_1h.copy())
+
+            if 'bb_upper' in df_with_ind_tmp.columns and 'bb_lower' in df_with_ind_tmp.columns:
+                close    = df_with_ind_tmp['close'].iloc[-1]
+                bb_upper = df_with_ind_tmp['bb_upper'].iloc[-1]
+                bb_lower = df_with_ind_tmp['bb_lower'].iloc[-1]
+
                 is_mean_reversion = (
-                    (direction == "BUY" and close <= bb_lower * 1.02) or
+                    (direction == "BUY"  and close <= bb_lower * 1.02) or
                     (direction == "SELL" and close >= bb_upper * 0.98)
                 )
-                
                 if not is_mean_reversion:
                     return self._rejected(
                         symbol, ts,

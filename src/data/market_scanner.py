@@ -224,7 +224,7 @@ class MarketScanner:
     def _simulate_df(symbol: str, n: int) -> pd.DataFrame:
         """Fallback simulator for testing without exchange."""
         base_prices = {
-            "BTC/USDT": 43000, "ETH/USDT": 2300, "SOL/USDT": 95,
+            "EURUSD": 43000, "GBPUSD": 2300, "USDJPY": 95,
             "EURUSD": 1.084, "XAUUSD": 1950,
         }
         base = base_prices.get(symbol, 100)

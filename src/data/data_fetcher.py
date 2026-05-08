@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, Optional
-from src.data.exchange_client import ExchangeClient
+from src.data.forex.broker_client import BrokerClient
 from src.data.data_validator import DataValidator
 from src.core.exceptions import DataError, InsufficientDataError
 from src.utils.logger import get_logger
@@ -13,11 +13,11 @@ logger = get_logger(__name__)
 class DataFetcher:
     """
     Fetches and caches OHLCV data from the exchange.
-    Converts raw CCXT output into validated pandas DataFrames.
+    Converts raw broker output into validated pandas DataFrames.
     """
 
-    def __init__(self, exchange_client: ExchangeClient):
-        self.exchange = exchange_client
+    def __init__(self, broker_client: BrokerClient):
+        self.exchange = broker_client
         self.validator = DataValidator()
         self._cache: Dict[str, pd.DataFrame] = {}
 
@@ -54,7 +54,7 @@ class DataFetcher:
         return df
 
     def _raw_to_dataframe(self, raw: list) -> pd.DataFrame:
-        """Convert CCXT raw OHLCV list to DataFrame."""
+        """Convert raw OHLCV list to DataFrame."""
         df = pd.DataFrame(
             raw, columns=["timestamp", "open", "high", "low", "close", "volume"]
         )

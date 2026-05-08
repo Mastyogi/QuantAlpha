@@ -152,3 +152,8 @@ class PaperTrader:
             "total_pnl": sum(t["pnl"] for t in self.closed_trades),
             "total_fees": self.total_fees,
         }
+
+    @property
+    def trade_history(self) -> List[dict]:
+        """Alias for closed_trades — used by performance tracker."""
+        return self.closed_trades

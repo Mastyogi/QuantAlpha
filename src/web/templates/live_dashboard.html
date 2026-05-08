@@ -180,8 +180,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
   </div>
 
   <div class="symbol-bar">
-    <button class="sym-btn active" onclick="switchSymbol('BTC/USDT',this)">BTC/USDT</button>
-    <button class="sym-btn" onclick="switchSymbol('ETH/USDT',this)">ETH/USDT</button>
+    <button class="sym-btn active" onclick="switchSymbol('EURUSD',this)">EURUSD</button>
+    <button class="sym-btn" onclick="switchSymbol('GBPUSD',this)">GBPUSD</button>
     <button class="sym-btn" onclick="switchSymbol('EURUSD',this)">EUR/USD</button>
     <button class="sym-btn" onclick="switchSymbol('XAUUSD',this)">XAU/USD</button>
   </div>
@@ -198,7 +198,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
   <!-- Chart Area -->
   <div class="chart-area">
     <div class="chart-toolbar">
-      <span style="font-size:12px;color:var(--muted);font-weight:600" id="sym-label">BTC/USDT</span>
+      <span style="font-size:12px;color:var(--muted);font-weight:600" id="sym-label">EURUSD</span>
       <div style="width:1px;height:16px;background:var(--border)"></div>
       <button class="tf-btn" onclick="setTF('15m',this)">15m</button>
       <button class="tf-btn active" onclick="setTF('1h',this)">1H</button>
@@ -328,7 +328,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', system-u
 
 // ── State ──────────────────────────────────────────────────────────────────
 const STATE = {
-  symbol: 'BTC/USDT',
+  symbol: 'EURUSD',
   tf: '1h',
   equity: 10000,
   totalPnl: 0,
@@ -344,7 +344,7 @@ const STATE = {
 };
 
 const BASE_PRICES = {
-  'BTC/USDT': 43285, 'ETH/USDT': 2285, 'EURUSD': 1.0842, 'XAUUSD': 1948.5
+  'EURUSD': 43285, 'GBPUSD': 2285, 'EURUSD': 1.0842, 'XAUUSD': 1948.5
 };
 
 // ── Chart Setup ────────────────────────────────────────────────────────────
@@ -562,13 +562,13 @@ async function fetchAndUpdate() {
 }
 
 function simulateNewSignal() {
-  const syms = ['BTC/USDT','ETH/USDT','EURUSD','XAUUSD'];
+  const syms = ['EURUSD','GBPUSD','EURUSD','XAUUSD'];
   const sym  = STATE.symbol;
   const base = BASE_PRICES[sym] || 100;
   const dir  = Math.random() > 0.5 ? 'BUY' : 'SELL';
   const confScore = 72 + Math.random() * 20;
   const aiConf    = 0.70 + Math.random() * 0.20;
-  const atrPct    = { 'BTC/USDT': 0.018, 'ETH/USDT': 0.020, 'EURUSD': 0.003, 'XAUUSD': 0.008 }[sym] || 0.015;
+  const atrPct    = { 'EURUSD': 0.018, 'GBPUSD': 0.020, 'EURUSD': 0.003, 'XAUUSD': 0.008 }[sym] || 0.015;
   const atr = base * atrPct;
   const entry = _tickPrice || base;
   const sl  = dir === 'BUY' ? entry - atr * 1.8  : entry + atr * 1.8;

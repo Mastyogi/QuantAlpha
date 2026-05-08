@@ -14,6 +14,8 @@ class DataValidator:
 
     def validate_and_clean(self, df: pd.DataFrame) -> pd.DataFrame:
         """Full validation + cleaning pipeline."""
+        if df.empty:
+            raise DataValidationError("DataFrame is empty")
         df = self._check_required_columns(df)
         df = self._remove_zero_volume(df)
         df = self._fix_hloc_violations(df)

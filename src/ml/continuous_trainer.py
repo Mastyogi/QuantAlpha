@@ -12,7 +12,7 @@ class ContinuousTrainer:
     def __init__(self, data_feed=None, model_dir="models", symbols=None,
                  confluence_threshold=82, optuna_trials=50):
         self.feed = data_feed; self.model_dir = model_dir
-        self.symbols = symbols or ["BTC/USDT","ETH/USDT","SOL/USDT"]
+        self.symbols = symbols or ["EURUSD","GBPUSD","USDJPY"]
         self.confluence_threshold = confluence_threshold
         self.optuna_trials = optuna_trials
         self._models: Dict[str,object] = {}

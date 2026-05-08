@@ -92,7 +92,7 @@ async def handle_start(update, context, engine=None):
     welcome = "Welcome back" if not created else "Welcome"
 
     text = (
-        f"🤖 *{welcome}, {name}!*\n\n"
+        f"🤖 *{welcome}, {name}!* (v2.0 Production)\n\n"
         f"*QuantAlpha* — AI-powered trading bot with live MT5 execution, "
         f"escrow-secured funds, and a 3-level referral program.\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -568,7 +568,7 @@ async def handle_chart(update, context, engine=None):
     Link to TradingView chart for a symbol.
     """
     args = context.args or []
-    symbol = args[0].upper() if args else "BTCUSDT"
+    symbol = args[0].upper() if args else "EURUSD"
     symbol_tv = symbol.replace("/", "").replace("-", "")
 
     url = f"https://www.tradingview.com/chart/?symbol={symbol_tv}"
@@ -589,7 +589,7 @@ async def handle_alert(update, context, engine=None):
     args = context.args or []
     if len(args) < 2:
         await update.message.reply_text(
-            "Usage: `/alert <symbol> <price>`\nExample: `/alert BTCUSDT 50000`",
+            "Usage: `/alert <symbol> <price>`\nExample: `/alert EURUSD 50000`",
             parse_mode="Markdown",
         )
         return

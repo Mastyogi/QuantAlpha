@@ -93,7 +93,7 @@ class TestPnLCalculatorLoad:
         start = time.monotonic()
         for i in range(1000):
             tid = f"trade_{i}"
-            calc.record_trade_open(tid, "BTC/USDT", "BUY", 45000, 0.1, 1000, "trend")
+            calc.record_trade_open(tid, "EURUSD", "BUY", 45000, 0.1, 1000, "trend")
             exit_price = 45900 if i % 3 != 0 else 44500  # 67% win rate
             calc.record_trade_close(tid, exit_price, "TP" if i % 3 != 0 else "SL")
 

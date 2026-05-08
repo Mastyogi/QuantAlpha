@@ -49,7 +49,7 @@ def format_signal(
     Full trade signal notification.
     Example output:
     ╔══════════════════════════════╗
-    ║ 📈 BUY SIGNAL — BTC/USDT    ║
+    ║ 📈 BUY SIGNAL — EURUSD    ║
     ╚══════════════════════════════╝
     ...
     """

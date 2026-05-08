@@ -290,14 +290,14 @@ class PrecisionSignalEngine:
     Usage:
         engine = PrecisionSignalEngine(mode="precision")   # 90% threshold
         engine = PrecisionSignalEngine(mode="ultra")       # 95% threshold
-        signal = engine.analyze("BTC/USDT", df_1h, df_4h)
+        signal = engine.analyze("EURUSD", df_1h, df_4h)
 
         if signal.approved:
             # Trade it — expected 93%+ win rate
             execute(signal.trade_setup)
 
         # After trade closes:
-        engine.record_outcome("BTC/USDT", "BUY", signal.combined_score, won=True, pnl_pct=2.5)
+        engine.record_outcome("EURUSD", "BUY", signal.combined_score, won=True, pnl_pct=2.5)
     """
 
     MODES = {
@@ -362,7 +362,7 @@ class PrecisionSignalEngine:
         Full 20-layer precision analysis.
 
         Args:
-            symbol: Trading symbol e.g. "BTC/USDT"
+            symbol: Trading symbol e.g. "EURUSD"
             df_1h:  1H OHLCV DataFrame (primary)
             df_4h:  4H OHLCV (strongly recommended)
             df_15m: 15m for confirmation (optional)

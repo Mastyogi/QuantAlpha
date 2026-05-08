@@ -37,40 +37,42 @@ def sample_dataframe():
 @pytest.mark.asyncio
 async def test_signal_blocked_in_volatile_regime(signal_engine, sample_dataframe):
     """Test that signals are blocked in VOLATILE regime."""
-    with patch('src.signals.signal_engine.RegimeDetector') as MockRegimeDetector:
+    with patch('src.signals.regime_detector.MarketRegimeDetector') as MockRegimeDetector:
         mock_detector = MockRegimeDetector.return_value
         mock_detector.detect_regime = AsyncMock(return_value="VOLATILE")
         
-        signal = await signal_engine.generate_signal(sample_dataframe, "BTC/USDT")
+        signal = await signal_engine.analyze("EURUSD", sample_dataframe)
         
-        # Signal should be None (blocked)
-        assert signal is None
+        # Signal should be rejected
+        assert not signal.approved
 
 
 @pytest.mark.asyncio
 async def test_signal_blocked_in_dead_regime(signal_engine, sample_dataframe):
     """Test that signals are blocked in DEAD regime."""
-    with patch('src.signals.signal_engine.RegimeDetector') as MockRegimeDetector:
+    with patch('src.signals.regime_detector.MarketRegimeDetector') as MockRegimeDetector:
         mock_detector = MockRegimeDetector.return_value
         mock_detector.detect_regime = AsyncMock(return_value="DEAD")
         
-        signal = await signal_engine.generate_signal(sample_dataframe, "BTC/USDT")
+        signal = await signal_engine.analyze("EURUSD", sample_dataframe)
         
-        # Signal should be None (blocked)
-        assert signal is None
+        # Signal should be rejected
+        assert not signal.approved
 
 
 @pytest.mark.asyncio
 async def test_signal_allowed_in_trending_regime(signal_engine, sample_dataframe):
     """Test that signals are allowed in TRENDING regime."""
-    with patch('src.signals.signal_engine.RegimeDetector') as MockRegimeDetector:
+    with patch('src.signals.regime_detector.MarketRegimeDetector') as MockRegimeDetector:
         mock_detector = MockRegimeDetector.return_value
         mock_detector.detect_regime = AsyncMock(return_value="TRENDING")
         
         # Mock other dependencies to allow signal generation
-        with patch.object(signal_engine, '_calculate_confluence_score', return_value=80.0):
-            with patch.object(signal_engine, '_get_ai_prediction', return_value=(0.8, "BUY")):
-                signal = await signal_engine.generate_signal(sample_dataframe, "BTC/USDT")
+        with patch.object(signal_engine._confluence, 'score_signal') as mock_score:
+            mock_score.return_value = Mock(score=80.0, passed=True)
+            with patch.object(signal_engine, '_get_or_train_model') as mock_model:
+                mock_model.return_value.predict.return_value = (1, 0.8, "BUY")
+                signal = await signal_engine.analyze("EURUSD", sample_dataframe)
                 
                 # Signal should be generated (not None)
                 # Note: Actual signal generation depends on many factors
@@ -81,7 +83,7 @@ async def test_signal_allowed_in_trending_regime(signal_engine, sample_dataframe
 @pytest.mark.asyncio
 async def test_ranging_regime_mean_reversion_only(signal_engine, sample_dataframe):
     """Test that RANGING regime only allows mean-reversion signals."""
-    with patch('src.signals.signal_engine.RegimeDetector') as MockRegimeDetector:
+    with patch('src.signals.regime_detector.MarketRegimeDetector') as MockRegimeDetector:
         mock_detector = MockRegimeDetector.return_value
         mock_detector.detect_regime = AsyncMock(return_value="RANGING")
         
@@ -91,9 +93,11 @@ async def test_ranging_regime_mean_reversion_only(signal_engine, sample_datafram
         df['bb_lower'] = 40000
         df['close'] = 41900  # Near upper band
         
-        with patch.object(signal_engine, '_calculate_confluence_score', return_value=80.0):
-            with patch.object(signal_engine, '_get_ai_prediction', return_value=(0.8, "SELL")):
-                signal = await signal_engine.generate_signal(df, "BTC/USDT")
+        with patch.object(signal_engine._confluence, 'score_signal') as mock_score:
+            mock_score.return_value = Mock(score=80.0, passed=True)
+            with patch.object(signal_engine, '_get_or_train_model') as mock_model:
+                mock_model.return_value.predict.return_value = (-1, 0.8, "SELL")
+                signal = await signal_engine.analyze("EURUSD", df)
                 
                 # Should allow mean-reversion signal
                 assert True

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from config.settings import settings
 from src.core.event_bus import EventBus, EventType, Event, bus
-from src.data.exchange_client import ExchangeClient
+from src.data.forex.broker_client import BrokerClient
 from src.data.data_fetcher import DataFetcher
 from src.data.market_scanner import MarketScanner, ScannerConfig
 from src.execution.order_manager import OrderManager
@@ -25,14 +25,14 @@ logger = get_logger(__name__)
 class BotEngineV2:
     def __init__(self, validate_on_start: bool = False):
         self.event_bus = bus
-        self.exchange = ExchangeClient()
-        self.fetcher = DataFetcher(self.exchange)
+        self.broker = BrokerClient()
+        self.fetcher = DataFetcher(self.broker)
         self.notifier = TelegramNotifier()
         self.trade_repo = TradeRepository()
         self.signal_repo = SignalRepository()
         self.signal_engine = FineTunedSignalEngine(
             model_dir="models",
-            confluence_threshold=float(getattr(settings,"ai_confidence_threshold",0.70)*100),
+            confluence_threshold=float(getattr(settings,"confluence_threshold",75)),
             max_risk_pct=float(getattr(settings,"risk_per_trade_pct",2.0)),
             account_equity=10_000.0,
         )
@@ -41,7 +41,7 @@ class BotEngineV2:
             max_risk_pct=float(getattr(settings,"risk_per_trade_pct",2.0)),
             account_equity=10_000.0,
         )
-        self.order_manager = OrderManager(self.exchange)
+        self.order_manager = OrderManager(self.broker)
         self.scanner = MarketScanner(
             config=ScannerConfig(
                 symbols=getattr(settings,"all_instruments",settings.trading_pairs),
@@ -74,7 +74,7 @@ class BotEngineV2:
         
         # Health check system
         self.health_check_system = HealthCheckSystem(
-            exchange_client=self.exchange,
+            exchange_client=self.broker,
             database_connection=None,  # Will be set after DB init
             telegram_notifier=self.notifier,
             signal_engine=self.signal_engine,
@@ -129,10 +129,10 @@ class BotEngineV2:
     async def start(self) -> None:
         logger.info("Starting BotEngineV2...")
         await self.event_bus.start()
-        await self.exchange.initialize()
+        await self.broker.initialize()
         await self.notifier.start()
-        balance = await self.exchange.fetch_balance()
-        initial_equity = float(balance.get("USDT", {}).get("total", 10_000.0))
+        account_info = await self.broker.get_account_info()
+        initial_equity = float(account_info.get("equity", 10_000.0))
         self.drawdown_monitor = DrawdownMonitor(initial_equity=initial_equity)
         self.adaptive_risk.account_equity = initial_equity
         self.signal_engine.account_equity = initial_equity
@@ -246,7 +246,7 @@ class BotEngineV2:
         if settings.trading_mode == "paper":
             await self._execute_trade(signal)
         elif settings.trading_mode == "live":
-            # Live mode: also execute trade (MT5 or CCXT)
+            # Live mode: execute trade
             await self._execute_trade(signal)
 
     async def _execute_trade(self, signal: FinalSignal) -> None:
@@ -300,7 +300,7 @@ class BotEngineV2:
             symbols = list({p["symbol"] for p in positions.values()})
             prices = {}
             for sym in symbols:
-                ticker = await self.exchange.fetch_ticker(sym)
+                ticker = await self.broker.fetch_tick(sym)
                 prices[sym] = ticker.get("last", 0.0)
             closed = await self.order_manager.check_and_close_positions(prices)
             for trade in closed:
@@ -496,7 +496,7 @@ class BotEngineV2:
         await self.scanner.stop()
         await self.event_bus.stop()
         await self.notifier.stop()
-        await self.exchange.close()
+        await self.broker.close()
 
     async def get_status(self) -> Dict:
         uptime = (

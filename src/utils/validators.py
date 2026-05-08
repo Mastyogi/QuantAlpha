@@ -19,7 +19,7 @@ def validate_ohlcv(df: pd.DataFrame) -> bool:
 
 
 def validate_symbol(symbol: str) -> bool:
-    """Validate trading pair format (e.g., BTC/USDT)."""
+    """Validate trading pair format (e.g., EURUSD)."""
     if not symbol or "/" not in symbol:
         return False
     parts = symbol.split("/")

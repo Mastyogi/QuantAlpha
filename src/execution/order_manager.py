@@ -1,5 +1,5 @@
 from typing import Dict, Optional
-from src.data.exchange_client import ExchangeClient
+from src.data.forex.broker_client import BrokerClient
 from src.execution.paper_trader import PaperTrader
 from src.execution.mt5_executor import MT5Executor
 from src.database.repositories import TradeRepository
@@ -24,13 +24,13 @@ class OrderManager:
 
     def __init__(
         self, 
-        exchange: ExchangeClient,
+        broker: BrokerClient,
         initial_equity: Optional[float] = None,
         enable_compounding: bool = True,
         telegram_notifier=None,
         mt5_executor: Optional[MT5Executor] = None,
     ):
-        self.exchange = exchange
+        self.broker = broker
         self.paper_trader = PaperTrader()
         self.trade_repo = TradeRepository()
         self.telegram_notifier = telegram_notifier
@@ -144,7 +144,7 @@ class OrderManager:
                 strategy_name=strategy_name,
             )
         else:
-            # ── LIVE MODE: route to MT5 or CCXT ──────────────────────────────
+            # ── LIVE MODE: route to MT5 ──────────────────────────────
             if settings.broker_mode == "mt5" and self._mt5:
                 # Calculate lot size from USD amount
                 lot_size = self._usd_to_lots(symbol, final_size_usd, entry_price)
@@ -168,10 +168,7 @@ class OrderManager:
                     "timestamp": int(utcnow().timestamp() * 1000),
                 }
             else:
-                # CCXT live order
-                quantity = final_size_usd / entry_price
-                result = await self.exchange.create_market_order(symbol, side, quantity)
-                result["price"] = entry_price
+                raise RuntimeError("Live trading requires MT5 broker_mode and an initialized MT5 client.")
 
         # Calculate risk percentage for portfolio heat tracking
         risk_pct = abs(entry_price - stop_loss) / entry_price * 100
@@ -207,12 +204,12 @@ class OrderManager:
         )
         return result
 
-    async def check_and_close_positions(self, current_prices: Dict[str, float]):
+    async def check_and_close_positions(self, current_prices: Dict[str, float]) -> list:
         """Check paper positions for SL/TP hits and update DB + equity."""
         if settings.trading_mode != "paper":
-            return
+            return []
 
-        closed_trades = self.paper_trader.update_positions(current_prices)
+        closed_trades = self.paper_trader.update_positions(current_prices) or []
         for trade in closed_trades:
             # Close trade in database
             await self.trade_repo.close_trade(
@@ -252,6 +249,8 @@ class OrderManager:
             # Remove from profit booking engine
             if self.profit_booking_engine and "trade_id" in trade:
                 await self.profit_booking_engine.remove_position(trade["trade_id"])
+        
+        return closed_trades
     
     async def start_profit_booking(self):
         """Start the profit booking engine."""

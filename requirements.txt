@@ -11,7 +11,7 @@ python-telegram-bot==20.7
 httpx==0.25.2  # Must match python-telegram-bot==20.7 requirement
 
 # ── Exchange Connectivity ────────────────────────────────────────
-ccxt==4.4.53
+MetaTrader5
 
 # ── Data Science Core ───────────────────────────────────────────
 pandas==2.1.4

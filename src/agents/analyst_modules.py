@@ -346,7 +346,7 @@ class OnChainAnalystModule:
     In prod: Glassnode / Nansen API. In sandbox: calibrated simulation.
     """
 
-    CRYPTO_SYMBOLS = {"BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT",
+    CRYPTO_SYMBOLS = {"EURUSD", "GBPUSD", "USDJPY", "BNB/USDT",
                        "BTC/USD", "ETH/USD", "SOL/USD"}
 
     def analyze(self, df: pd.DataFrame, symbol: str,

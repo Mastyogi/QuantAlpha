@@ -349,7 +349,7 @@ async def handle_rollback(update, context, engine):
         if not args:
             await update.message.reply_text(
                 "⚠️ Usage: `/rollback <symbol>`\n"
-                "Example: `/rollback BTC/USDT`",
+                "Example: `/rollback EURUSD`",
                 parse_mode="Markdown"
             )
             return
@@ -507,7 +507,7 @@ async def handle_retrain(update, context, engine):
         if not args:
             await update.message.reply_text(
                 "⚠️ Usage: `/retrain <symbol>`\n"
-                "Example: `/retrain BTC/USDT`",
+                "Example: `/retrain EURUSD`",
                 parse_mode="Markdown"
             )
             return
@@ -813,7 +813,7 @@ async def handle_regime(update, context, engine):
         
         text = "📊 *MARKET REGIMES*\n\n"
         
-        trading_pairs = os.getenv('PAIRS', 'BTC/USDT,ETH/USDT').split(',')
+        trading_pairs = os.getenv('PAIRS', 'EURUSD,GBPUSD').split(',')
         
         # Check regime for each trading pair
         for symbol in trading_pairs[:6]:

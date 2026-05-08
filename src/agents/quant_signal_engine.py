@@ -129,7 +129,7 @@ class QuantSignalEngine:
 
     Usage:
         engine = QuantSignalEngine()
-        signal = engine.generate(df, symbol="BTC/USDT", equity=100.0)
+        signal = engine.generate(df, symbol="EURUSD", equity=100.0)
         if signal and signal.is_high_confidence:
             await notifier.send_quant_signal(signal.__dict__)
     """

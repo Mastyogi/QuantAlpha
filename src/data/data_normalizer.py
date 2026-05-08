@@ -4,7 +4,7 @@ Data Normalizer
 Normalizes OHLCV data across different exchanges and timeframes.
 
 Problems it solves:
-  - Different exchanges have different quote currencies (BTC/USD vs BTC/USDT)
+  - Different exchanges have different quote currencies (BTC/USD vs EURUSD)
   - Timestamps may be in different timezones or precisions
   - Prices may have different decimal representations
   - Volume units differ (BTC volume on Binance vs Coinbase)
@@ -34,12 +34,12 @@ class DataNormalizer:
 
     # Symbol aliases: map exchange-specific symbols to internal standard
     SYMBOL_ALIASES: Dict[str, str] = {
-        "BTC/USD":   "BTC/USDT",
-        "ETH/USD":   "ETH/USDT",
-        "XBT/USD":   "BTC/USDT",   # Kraken convention
-        "XBT/USDT":  "BTC/USDT",
-        "BTCUSD":    "BTC/USDT",   # No separator
-        "ETHUSD":    "ETH/USDT",
+        "BTC/USD":   "EURUSD",
+        "ETH/USD":   "GBPUSD",
+        "XBT/USD":   "EURUSD",   # Kraken convention
+        "XBT/USDT":  "EURUSD",
+        "BTCUSD":    "EURUSD",   # No separator
+        "ETHUSD":    "GBPUSD",
         "EURUSD=X":  "EURUSD",     # Yahoo Finance convention
         "XAUUSD=X":  "XAUUSD",
     }
@@ -99,20 +99,15 @@ class DataNormalizer:
         return df
 
     def normalize_symbol(self, symbol: str) -> str:
-        """Standardize symbol string to internal format."""
-        # Remove spaces
-        symbol = symbol.replace(" ", "")
+        """Standardize symbol string to internal format (MT5 convention: no slashes)."""
+        # Standardize: remove slashes and spaces, then uppercase
+        clean = symbol.replace(" ", "").replace("/", "").replace("-", "").upper()
+        
         # Check alias map
-        if symbol in self.SYMBOL_ALIASES:
-            return self.SYMBOL_ALIASES[symbol]
-        # Convert BTCUSDT → BTC/USDT (common exchange format without /)
-        if len(symbol) >= 6 and "/" not in symbol:
-            for quote in ["USDT", "USD", "BTC", "ETH", "BUSD"]:
-                if symbol.endswith(quote):
-                    base = symbol[: -len(quote)]
-                    if len(base) >= 2:
-                        return f"{base}/{quote}"
-        return symbol.upper()
+        if clean in self.SYMBOL_ALIASES:
+            return self.SYMBOL_ALIASES[clean]
+            
+        return clean
 
     def align_timeframes(
         self,

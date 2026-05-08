@@ -58,4 +58,4 @@ class TestNetworkFailures:
 
         fetcher = DataFetcher(mock_exchange)
         with pytest.raises(InsufficientDataError):
-            await fetcher.get_dataframe("BTC/USDT", "1h")
+            await fetcher.get_dataframe("EURUSD", "1h")

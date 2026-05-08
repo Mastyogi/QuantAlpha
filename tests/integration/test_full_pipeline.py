@@ -19,9 +19,23 @@ async def test_signal_to_trade_pipeline():
     # Create bot engine instance
     engine = BotEngineV2(validate_on_start=False)
     
-    # Mock exchange to avoid real API calls
-    engine.exchange.fetch_balance = AsyncMock(return_value={"USDT": {"total": 10000.0}})
-    engine.exchange.initialize = AsyncMock()
+    # Mock broker to avoid real API calls
+    engine.broker.get_account_info = AsyncMock(return_value={"equity": 10000.0, "balance": 10000.0})
+    engine.broker.initialize = AsyncMock()
+    
+    # Mock notifier to avoid console print/queue issues
+    engine.notifier = AsyncMock()
+    engine.notifier.send_alert = AsyncMock()
+    engine.notifier.send_trade_opened = AsyncMock()
+    
+    # Mock event bus to avoid background dispatching
+    engine.event_bus = Mock()
+    engine.event_bus.emit_signal = AsyncMock()
+    engine.event_bus.emit_trade_opened = AsyncMock()
+    
+    # Mock trade repository to avoid DB hangs
+    engine.order_manager.trade_repo = AsyncMock()
+    engine.order_manager.trade_repo.create_trade = AsyncMock(return_value=Mock(id="test_id"))
     
     # Create sample dataframe
     dates = pd.date_range(start='2024-01-01', periods=100, freq='1H')
@@ -36,13 +50,14 @@ async def test_signal_to_trade_pipeline():
     
     # Mock signal generation
     mock_signal = FinalSignal(
-        symbol="BTC/USDT",
+        symbol="EURUSD",
         direction="BUY",
+        approved=True,
         confluence_score=85.0,
         ai_confidence=0.80,
         win_rate_estimate=0.65,
         trade_setup=TradeSetup(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             direction="BUY",
             entry_price=41000.0,
             stop_loss=40500.0,
@@ -72,10 +87,10 @@ async def test_signal_to_trade_pipeline():
 @pytest.mark.asyncio
 async def test_regime_detection_integration():
     """Test regime detection integration with signal engine."""
-    from src.signals.regime_detector import RegimeDetector
+    from src.signals.regime_detector import MarketRegimeDetector
     from src.signals.signal_engine import FineTunedSignalEngine
     
-    regime_detector = RegimeDetector()
+    regime_detector = MarketRegimeDetector()
     signal_engine = FineTunedSignalEngine(
         model_dir="models",
         confluence_threshold=75.0,
@@ -95,7 +110,7 @@ async def test_regime_detection_integration():
     })
     
     # Detect regime
-    regime = await regime_detector.detect_regime(df, "BTC/USDT")
+    regime = await regime_detector.detect_regime(df, "EURUSD")
     
     # Should detect TRENDING or BREAKOUT
     assert regime in ["TRENDING", "BREAKOUT", "VOLATILE"]
@@ -122,7 +137,7 @@ async def test_event_bus_integration():
     # Publish event
     await bus.publish(Event(
         type=EventType.TRADE_CLOSED,
-        data={"symbol": "BTC/USDT", "pnl": 100.0},
+        data={"symbol": "EURUSD", "pnl": 100.0},
         source="test",
     ))
     
@@ -149,8 +164,8 @@ async def test_correlation_guard_integration():
     
     # Mock open positions
     open_positions = [
-        {"symbol": "BTC/USDT"},
-        {"symbol": "ETH/USDT"},
+        {"symbol": "EURUSD"},
+        {"symbol": "GBPUSD"},
     ]
     
     # Test correlation check

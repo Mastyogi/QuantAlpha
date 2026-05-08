@@ -8,11 +8,17 @@ import jwt
 from datetime import datetime, timedelta
 from config.settings import settings
 from src.utils.logger import get_logger
+import os
 
 logger = get_logger(__name__)
 
-# Rate limiter
-limiter = Limiter(key_func=get_remote_address)
+# Rate limiter - prevent starlette from reading .env (encoding issues on Windows)
+# Environment variables are already loaded by python-dotenv in start.py
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=os.getenv("REDIS_URL", "memory://"),
+    config_filename=None  # Don't read .env - already loaded by python-dotenv
+)
 
 # Security
 security = HTTPBearer()
@@ -294,7 +300,7 @@ def create_api_server(engine=None, health_check_system=None) -> FastAPI:
         """Run backtest with given parameters."""
         from src.backtesting.backtester import Backtester
         
-        symbol = backtest_params.get("symbol", "BTC/USDT")
+        symbol = backtest_params.get("symbol", "EURUSD")
         start_date = backtest_params.get("start_date")
         end_date = backtest_params.get("end_date")
         

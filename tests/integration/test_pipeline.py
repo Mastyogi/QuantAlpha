@@ -94,7 +94,7 @@ class TestAdvancedFeaturePipeline:
     def test_features_generated_count(self, realistic_ohlcv_df):
         from src.ai_engine.advanced_features import AdvancedFeaturePipeline
         pipeline = AdvancedFeaturePipeline()
-        features_df = pipeline.generate(realistic_ohlcv_df)
+        features_df = pipeline.extract_features(realistic_ohlcv_df)
         assert features_df is not None
         feature_cols = [c for c in features_df.columns
                         if c not in ("open", "high", "low", "close", "volume")]
@@ -103,7 +103,7 @@ class TestAdvancedFeaturePipeline:
     def test_features_no_nan_after_warmup(self, realistic_ohlcv_df):
         from src.ai_engine.advanced_features import AdvancedFeaturePipeline
         pipeline = AdvancedFeaturePipeline()
-        features_df = pipeline.generate(realistic_ohlcv_df)
+        features_df = pipeline.extract_features(realistic_ohlcv_df)
         # After warmup period, critical features should have no NaN
         tail = features_df.tail(100)
         for col in AdvancedFeaturePipeline.FEATURE_COLUMNS[:20]:
@@ -121,7 +121,7 @@ class TestRiskPipeline:
         calc = PnLCalculator(initial_equity=10_000.0)
 
         # Open trade
-        calc.record_trade_open("t1", "BTC/USDT", "BUY", 45000, 0.044, 2000, "trend")
+        calc.record_trade_open("t1", "EURUSD", "BUY", 45000, 0.044, 2000, "trend")
 
         # Close with profit
         record = calc.record_trade_close("t1", 46000, "TP")
@@ -137,10 +137,10 @@ class TestRiskPipeline:
         # 3 winning trades, 1 losing
         for i in range(3):
             tid = f"win_{i}"
-            calc.record_trade_open(tid, "BTC/USDT", "BUY", 45000, 0.1, 1000, "trend")
+            calc.record_trade_open(tid, "EURUSD", "BUY", 45000, 0.1, 1000, "trend")
             calc.record_trade_close(tid, 45900, "TP")  # ~+2% win
 
-        calc.record_trade_open("loss_1", "ETH/USDT", "SELL", 2500, 0.4, 1000, "trend")
+        calc.record_trade_open("loss_1", "GBPUSD", "SELL", 2500, 0.4, 1000, "trend")
         calc.record_trade_close("loss_1", 2600, "SL")  # loss
 
         snap = calc.get_snapshot()
@@ -152,10 +152,10 @@ class TestRiskPipeline:
     def test_portfolio_manager_blocks_correlated_trades(self):
         from src.risk.portfolio_manager import PortfolioManager
         pm = PortfolioManager(equity=10_000.0)
-        pm.add_position("t1", "BTC/USDT", "BUY", 2000, 2.0)
+        pm.add_position("t1", "EURUSD", "BUY", 2000, 2.0)
 
         # ETH/BTC correlation = 0.85 — should be blocked
-        result = pm.check_new_trade("ETH/USDT", "BUY", 2000, 2.0)
+        result = pm.check_new_trade("GBPUSD", "BUY", 2000, 2.0)
         assert not result.approved
         assert result.max_correlation >= 0.75
 
@@ -167,7 +167,7 @@ class TestRiskPipeline:
             pm.add_position(f"t{i}", f"ASSET{i}/USDT", "BUY", 2000, 2.0)
 
         # 5th trade would push to 10% — over 8% limit
-        result = pm.check_new_trade("SOL/USDT", "BUY", 2000, 2.0)
+        result = pm.check_new_trade("USDJPY", "BUY", 2000, 2.0)
         assert not result.approved
         assert "heat" in result.reason.lower()
 
@@ -179,7 +179,7 @@ class TestBacktestPipeline:
     def test_backtester_runs_and_returns_metrics(self, realistic_ohlcv_df):
         from src.backtesting.backtester import VectorizedBacktester
         bt = VectorizedBacktester()
-        result = bt.run(realistic_ohlcv_df, "BTC/USDT", "1h", initial_capital=10_000.0)
+        result = bt.run(realistic_ohlcv_df, "EURUSD", "1h", initial_capital=10_000.0)
         assert result is not None
         assert result.total_trades >= 0
         assert 0 <= result.win_rate <= 100
@@ -211,11 +211,11 @@ class TestBacktestPipeline:
 class TestDataNormalization:
     """Test data normalizer cross-exchange compatibility."""
 
-    def test_normalize_raw_ccxt_format(self):
+    def test_normalize_raw_mt5_format(self):
         from src.data.data_normalizer import DataNormalizer
         norm = DataNormalizer()
 
-        # Raw CCXT format
+        # Raw MT5 format
         raw = pd.DataFrame({
             "timestamp": pd.date_range("2024-01-01", periods=100, freq="1h"),
             "open": np.random.uniform(44000, 46000, 100),
@@ -224,7 +224,7 @@ class TestDataNormalization:
             "close": np.random.uniform(44000, 46000, 100),
             "volume": np.random.uniform(100, 1000, 100),
         })
-        result = norm.normalize(raw, "BTC/USDT")
+        result = norm.normalize(raw, "EURUSD")
         assert result.index.tz is not None  # UTC timezone
         assert list(result.columns) == ["open", "high", "low", "close", "volume"]
         assert (result["high"] >= result["low"]).all()
@@ -232,17 +232,17 @@ class TestDataNormalization:
     def test_symbol_normalization(self):
         from src.data.data_normalizer import DataNormalizer
         norm = DataNormalizer()
-        assert norm.normalize_symbol("BTCUSDT") == "BTC/USDT"
-        assert norm.normalize_symbol("XBT/USD") == "BTC/USDT"
-        assert norm.normalize_symbol("BTC/USD") == "BTC/USDT"
-        assert norm.normalize_symbol("EURUSD") == "EUR/USD"
+        assert norm.normalize_symbol("EURUSD") == "EURUSD"
+        assert norm.normalize_symbol("EUR/USD") == "EURUSD"
+        assert norm.normalize_symbol("GBP/USD") == "GBPUSD"
 
 
 @pytest.mark.integration
 class TestSignalEngine:
     """Test FineTunedSignalEngine with mock data."""
 
-    def test_signal_engine_returns_final_signal(self, realistic_ohlcv_df):
+    @pytest.mark.asyncio
+    async def test_signal_engine_returns_final_signal(self, realistic_ohlcv_df):
         from src.signals.signal_engine import FineTunedSignalEngine
         engine = FineTunedSignalEngine(
             model_dir="models",
@@ -250,16 +250,17 @@ class TestSignalEngine:
             max_risk_pct=2.0,
             account_equity=10_000.0,
         )
-        result = engine.analyze("BTC/USDT", realistic_ohlcv_df)
-        assert result.symbol == "BTC/USDT"
+        result = await engine.analyze("EURUSD", realistic_ohlcv_df)
+        assert result.symbol == "EURUSD"
         assert result.direction in ("BUY", "SELL", "NEUTRAL")
         assert 0 <= result.ai_confidence <= 1
         assert 0 <= result.confluence_score <= 100
 
-    def test_neutral_signal_when_no_model_loaded(self, realistic_ohlcv_df):
+    @pytest.mark.asyncio
+    async def test_neutral_signal_when_no_model_loaded(self, realistic_ohlcv_df):
         """Without a trained model, engine should return NEUTRAL (not crash)."""
         from src.signals.signal_engine import FineTunedSignalEngine
         engine = FineTunedSignalEngine(model_dir="/nonexistent/path")
-        result = engine.analyze("BTC/USDT", realistic_ohlcv_df)
+        result = await engine.analyze("EURUSD", realistic_ohlcv_df)
         assert result is not None
         # Should degrade gracefully — not raise exception

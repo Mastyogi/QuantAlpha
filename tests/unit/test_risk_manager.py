@@ -15,7 +15,7 @@ class TestRiskManager:
     @pytest.mark.asyncio
     async def test_valid_trade_approved(self, risk_manager):
         result = await risk_manager.check_trade(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             side="buy",
             proposed_size_usd=200.0,
             entry_price=45000.0,
@@ -29,7 +29,7 @@ class TestRiskManager:
     @pytest.mark.asyncio
     async def test_low_ai_confidence_rejected(self, risk_manager):
         result = await risk_manager.check_trade(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             side="buy",
             proposed_size_usd=200.0,
             entry_price=45000.0,
@@ -43,7 +43,7 @@ class TestRiskManager:
     @pytest.mark.asyncio
     async def test_bad_rr_ratio_rejected(self, risk_manager):
         result = await risk_manager.check_trade(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             side="buy",
             proposed_size_usd=200.0,
             entry_price=45000.0,
@@ -58,10 +58,10 @@ class TestRiskManager:
     async def test_max_positions_reached(self, risk_manager):
         # Fill max positions
         for i in range(5):
-            risk_manager.open_positions[f"order_{i}"] = {"symbol": "BTC/USDT", "size_usd": 200}
+            risk_manager.open_positions[f"order_{i}"] = {"symbol": "EURUSD", "size_usd": 200}
 
         result = await risk_manager.check_trade(
-            symbol="ETH/USDT",
+            symbol="GBPUSD",
             side="buy",
             proposed_size_usd=200.0,
             entry_price=2500.0,
@@ -75,7 +75,7 @@ class TestRiskManager:
     @pytest.mark.asyncio
     async def test_position_size_adjusted(self, risk_manager):
         result = await risk_manager.check_trade(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             side="buy",
             proposed_size_usd=5000.0,  # Way over 2%
             entry_price=45000.0,
@@ -90,7 +90,7 @@ class TestRiskManager:
     async def test_circuit_breaker_daily_loss(self, risk_manager):
         risk_manager.daily_pnl = -600.0  # 6% loss (over 5% limit)
         result = await risk_manager.check_trade(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             side="buy",
             proposed_size_usd=200.0,
             entry_price=45000.0,
@@ -106,7 +106,7 @@ class TestRiskManager:
         risk_manager.peak_equity = 10000.0
         risk_manager.current_equity = 8400.0  # 16% drawdown (over 15%)
         result = await risk_manager.check_trade(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             side="buy",
             proposed_size_usd=200.0,
             entry_price=45000.0,
@@ -121,7 +121,7 @@ class TestRiskManager:
     async def test_circuit_breaker_once_triggered_blocks_all(self, risk_manager):
         risk_manager._circuit_breaker_triggered = True
         result = await risk_manager.check_trade(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             side="buy",
             proposed_size_usd=200.0,
             entry_price=45000.0,

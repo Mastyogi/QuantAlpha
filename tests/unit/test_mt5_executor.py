@@ -161,11 +161,6 @@ class TestOrderManagerLotSizing:
         lot = OrderManager._usd_to_lots("EURUSD", 1000.0, 1.085)
         assert 0.005 <= lot <= 0.02
 
-    def test_crypto_lot_sizing(self):
-        from src.execution.order_manager import OrderManager
-        # BTC at 50000: $1000 / 50000 = 0.02 BTC
-        lot = OrderManager._usd_to_lots("BTC/USDT", 1000.0, 50000.0)
-        assert abs(lot - 0.02) < 0.001
 
     def test_minimum_lot_enforced(self):
         from src.execution.order_manager import OrderManager

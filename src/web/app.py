@@ -135,7 +135,7 @@ def create_app() -> Flask:
                 "strategy_name": rng.choice(["TrendFollowing", "MeanReversion", "Ensemble"]),
                 "created_at": f"{rng.randint(0,23):02d}:{rng.randint(0,59):02d} UTC",
             }
-            for sym in ["BTC/USDT", "ETH/USDT", "EURUSD", "XAUUSD", "GBPUSD"]
+            for sym in ["EURUSD", "GBPUSD", "EURUSD", "XAUUSD", "GBPUSD"]
         ]
         buy_count  = sum(1 for s in signals if s["direction"] == "BUY")
         sell_count = sum(1 for s in signals if s["direction"] == "SELL")
@@ -145,7 +145,7 @@ def create_app() -> Flask:
             ep = 43500 + rng.gauss(0, 200)
             cp = ep * (1 + rng.uniform(-0.02, 0.03))
             positions.append({
-                "symbol": "BTC/USDT", "side": "buy",
+                "symbol": "EURUSD", "side": "buy",
                 "size": 200, "entry_price": ep, "current_price": cp,
                 "stop_loss": ep * 0.975, "take_profit": ep * 1.045,
                 "unrealized_pnl": round((cp - ep) / ep * 200, 2),
@@ -153,7 +153,7 @@ def create_app() -> Flask:
 
         # Market prices for all instruments
         base_prices = {
-            "BTC/USDT": 43500, "ETH/USDT": 2318, "SOL/USDT": 98,
+            "EURUSD": 43500, "GBPUSD": 2318, "USDJPY": 98,
             "EURUSD": 1.0850, "GBPUSD": 1.2654, "USDJPY": 149.32,
             "AUDUSD": 0.6521,
             "XAUUSD": 2031.8, "XAGUSD": 22.74, "USOIL": 78.65,

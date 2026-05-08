@@ -415,7 +415,7 @@ class AdaptiveRiskManager:
             return 1.0
         
         # Try to find correlation in matrix
-        # Matrix format: {"BTCUSDT": {"ETHUSDT": 0.85, ...}, ...}
+        # Matrix format: {"EURUSD": {"GBPUSD": 0.85, ...}, ...}
         try:
             if s1 in correlation_matrix and s2 in correlation_matrix[s1]:
                 return abs(correlation_matrix[s1][s2])

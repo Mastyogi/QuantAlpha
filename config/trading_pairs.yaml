@@ -1,13 +1,23 @@
-watchlist:
-  - symbol: BTC/USDT
-    enabled: true
-    weight: 0.4
-  - symbol: ETH/USDT
-    enabled: true
-    weight: 0.3
-  - symbol: SOL/USDT
-    enabled: true
-    weight: 0.15
-  - symbol: BNB/USDT
-    enabled: true
-    weight: 0.15
+# QuantAlpha Forex Pairs Configuration
+# ===================================
+# Only Forex and Commodities (MT5 only)
+
+active_pairs:
+  - symbol: EURUSD
+    timeframes: ["1h", "4h"]
+    risk_weight: 1.0
+  - symbol: GBPUSD
+    timeframes: ["1h", "4h"]
+    risk_weight: 1.0
+  - symbol: USDJPY
+    timeframes: ["1h", "4h"]
+    risk_weight: 1.0
+  - symbol: AUDUSD
+    timeframes: ["1h", "4h"]
+    risk_weight: 1.0
+  - symbol: XAUUSD
+    timeframes: ["1h", "4h"]
+    risk_weight: 1.5
+  - symbol: USOIL
+    timeframes: ["1h", "4h"]
+    risk_weight: 1.2

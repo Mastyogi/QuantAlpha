@@ -220,7 +220,7 @@ class MT5Client:
     async def fetch_ohlcv(
         self, symbol: str, timeframe: str = "H1", limit: int = 200
     ) -> List[List]:
-        """Return [[timestamp_ms, O, H, L, C, V], ...] — same format as CCXT."""
+        """Return [[timestamp_ms, O, H, L, C, V], ...] — same format as MT5."""
         if not self._initialized:
             await self.initialize()
 

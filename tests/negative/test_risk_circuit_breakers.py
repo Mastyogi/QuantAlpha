@@ -17,7 +17,7 @@ class TestCircuitBreakers:
         risk_manager.daily_pnl = -600.0  # 6% loss
         for _ in range(3):
             result = await risk_manager.check_trade(
-                "BTC/USDT", "buy", 200, 45000, 44000, 47000, 0.95
+                "EURUSD", "buy", 200, 45000, 44000, 47000, 0.95
             )
             assert not result.approved
 
@@ -27,7 +27,7 @@ class TestCircuitBreakers:
         risk_manager.peak_equity = 10000.0
         risk_manager.current_equity = 8400.0  # 16% drawdown
         result = await risk_manager.check_trade(
-            "BTC/USDT", "buy", 200, 45000, 44000, 47000, 0.95
+            "EURUSD", "buy", 200, 45000, 44000, 47000, 0.95
         )
         assert not result.approved
         assert risk_manager.circuit_breaker_active
@@ -45,7 +45,7 @@ class TestCircuitBreakers:
     async def test_invalid_stop_loss_rejected(self, risk_manager):
         """Stop loss on wrong side of entry must be rejected."""
         result = await risk_manager.check_trade(
-            "BTC/USDT", "buy",
+            "EURUSD", "buy",
             200,
             45000,
             46000,   # SL above entry for BUY — invalid
@@ -57,6 +57,6 @@ class TestCircuitBreakers:
     @pytest.mark.asyncio
     async def test_zero_confidence_rejected(self, risk_manager):
         result = await risk_manager.check_trade(
-            "BTC/USDT", "buy", 200, 45000, 44000, 47000, ai_confidence=0.0
+            "EURUSD", "buy", 200, 45000, 44000, 47000, ai_confidence=0.0
         )
         assert not result.approved

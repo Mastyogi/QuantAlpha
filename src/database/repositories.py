@@ -109,6 +109,21 @@ class TradeRepository:
             )
             return list(result.scalars().all())
 
+    async def get_trades_in_range(self, start_date: datetime, end_date: datetime) -> List[Trade]:
+        if not is_db_available():
+            return []
+        async with get_session() as session:
+            if session is None:
+                return []
+            result = await session.execute(
+                select(Trade).where(
+                    Trade.status == TradeStatus.CLOSED,
+                    Trade.closed_at >= start_date,
+                    Trade.closed_at <= end_date
+                ).order_by(Trade.closed_at.asc())
+            )
+            return list(result.scalars().all())
+
 
 class SignalRepository:
     """Data access layer for Signal records. Gracefully handles DB unavailability."""

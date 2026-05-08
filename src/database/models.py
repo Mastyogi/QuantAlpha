@@ -29,8 +29,8 @@ class Trade(Base):
     symbol = Column(String(20), nullable=False, index=True)
     exchange = Column(String(30), nullable=False, default="paper")
     order_id = Column(String(100), unique=True)
-    direction = Column(SAEnum(TradeDirection), nullable=False)
-    status = Column(SAEnum(TradeStatus), default=TradeStatus.PENDING)
+    direction = Column(SAEnum(TradeDirection, values_callable=lambda x: [e.value for e in x]), nullable=False)
+    status = Column(SAEnum(TradeStatus, values_callable=lambda x: [e.value for e in x]), default=TradeStatus.PENDING)
 
     entry_price = Column(Float)
     exit_price = Column(Float)
@@ -64,7 +64,7 @@ class Signal(Base):
 
     id = Column(Integer, primary_key=True)
     symbol = Column(String(20), index=True)
-    direction = Column(SAEnum(TradeDirection))
+    direction = Column(SAEnum(TradeDirection, values_callable=lambda x: [e.value for e in x]))
     strategy_name = Column(String(50))
     timeframe = Column(String(10))
     entry_price = Column(Float)
@@ -297,9 +297,10 @@ class User(Base):
 
     # Broker integration
     broker_account = Column(String(100))          # FxPro account number
-    broker_mode = Column(SAEnum(BrokerMode), default=BrokerMode.DEMO)
+    broker_mode = Column(SAEnum(BrokerMode, values_callable=lambda x: [e.value for e in x]), default=BrokerMode.DEMO)
     verification_status = Column(
-        SAEnum(VerificationStatus), default=VerificationStatus.PENDING, index=True
+        SAEnum(VerificationStatus, values_callable=lambda x: [e.value for e in x]),
+        default=VerificationStatus.PENDING, index=True
     )
     verified_at = Column(DateTime(timezone=True))
 

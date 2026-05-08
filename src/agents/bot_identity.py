@@ -23,7 +23,7 @@ OPERATIONAL FRAMEWORK — Multi-Agent Collaborative System:
 
 LAYER 1 — Data Acquisition:
   • Real-time OHLCV, order book depth, volume data
-  • Exchange connectivity (Bitget WebSocket)
+  • Exchange connectivity (FxPro WebSocket)
   • Feature engineering: ATR, RSI, MACD, EMA stack, Bollinger Bands, Volume Profile
 
 LAYER 2 — Specialized Analyst Modules:
@@ -66,7 +66,7 @@ _Quant-Grade Market Research & Trading Expert_
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 *Operational Framework:*
-📡 Layer 1: Data Acquisition (Bitget WebSocket)
+📡 Layer 1: Data Acquisition (FxPro WebSocket)
 🔬 Layer 2: 4 Specialist Analyst Modules
 ⚖️ Layer 3: Bull/Bear Debate Engine
 🎯 Layer 4: Quant Signal Generation
@@ -78,7 +78,7 @@ _Quant-Grade Market Research & Trading Expert_
 ✅ 10-Layer Risk Management
 
 *Current Mode:* `PAPER TRADING`
-*Pairs:* `BTC/USDT | ETH/USDT | SOL/USDT`
+*Pairs:* `EURUSD | GBPUSD | USDJPY`
 *Timeframe:* `1H | Confluence ≥82`
 
 Type /help for all commands.
@@ -95,7 +95,7 @@ HELP_MESSAGE = f"""
 /trades   — Open positions
 
 🔬 *Analysis*
-/analyze BTC/USDT — Full quant analysis
+/analyze EURUSD — Full quant analysis
 /confidence       — Confidence scores
 /analysts         — Analyst reports
 

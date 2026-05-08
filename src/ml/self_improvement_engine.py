@@ -120,7 +120,7 @@ class SelfImprovementEngine:
         
         self._running = False
         self._last_retrain: Dict[str, float] = {}
-        self.active_symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+        self.active_symbols = ["EURUSD", "GBPUSD", "USDJPY"]
     
     async def start(self):
         """Start continuous improvement loops."""

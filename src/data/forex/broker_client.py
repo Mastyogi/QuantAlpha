@@ -1,6 +1,5 @@
 """
 Unified broker client that routes to the correct backend:
-  - Crypto pairs (BTC/USDT etc.)   → CCXT exchange client
   - Forex/Commodity (EURUSD etc.)  → MT5Client (real or simulator)
 
 Usage:
@@ -8,7 +7,6 @@ Usage:
     client = BrokerClient()
     await client.initialize()
     df = await client.fetch_ohlcv("EURUSD", "H1", 200)
-    df = await client.fetch_ohlcv("BTC/USDT", "1h", 200)
 """
 from __future__ import annotations
 
@@ -19,7 +17,6 @@ import pandas as pd
 
 from src.utils.logger import get_logger
 from src.data.forex.mt5_client import MT5Client, ALL_BASE_PRICES
-from src.data.exchange_client import ExchangeClient
 from src.data.data_validator import DataValidator
 
 logger = get_logger(__name__)
@@ -37,12 +34,12 @@ COMMODITY_SYMBOLS = {
 }
 MT5_SYMBOLS = FOREX_SYMBOLS | COMMODITY_SYMBOLS
 
-# MT5 timeframe string → CCXT-style string (for unified API)
+# MT5 timeframe string → MT5-style string (for unified API)
 MT5_TF_MAP = {
     "M1": "1m",  "M5": "5m",  "M15": "15m", "M30": "30m",
     "H1": "1h",  "H4": "4h",  "D1":  "1d",  "W1":  "1w",
 }
-CCXT_TO_MT5 = {v: k for k, v in MT5_TF_MAP.items()}
+MT5_TO_MT5 = {v: k for k, v in MT5_TF_MAP.items()}
 
 # Pip sizes for position sizing
 PIP_SIZES: Dict[str, float] = {
@@ -71,9 +68,9 @@ MAX_LOT: Dict[str, float] = {
 
 
 def is_forex_or_commodity(symbol: str) -> bool:
-    """Return True if symbol should be routed to MT5 (not CCXT)."""
+    """Return True if symbol should be routed to MT5."""
     clean = symbol.upper().replace("-", "").replace("/", "").replace("_", "")
-    return clean in MT5_SYMBOLS
+    return True # All pairs are now MT5 only
 
 
 def get_pip_size(symbol: str) -> float:
@@ -92,7 +89,7 @@ def get_asset_class(symbol: str) -> str:
         return "forex"
     if clean in COMMODITY_SYMBOLS:
         return "commodity"
-    return "crypto"
+    return "forex" # default fallback
 
 
 class BrokerClient:
@@ -101,12 +98,10 @@ class BrokerClient:
 
     Automatically routes:
       • Forex / commodity symbols → MT5Client (real terminal or paper simulator)
-      • Crypto pairs              → CCXT ExchangeClient (paper or live)
     """
 
     def __init__(self):
         self._mt5:  Optional[MT5Client]      = None
-        self._ccxt: Optional[ExchangeClient] = None
         self._validator = DataValidator()
         self._initialized = False
 
@@ -116,18 +111,10 @@ class BrokerClient:
         from config.settings import settings
 
         # MT5 for forex/commodities
-        if settings.enable_forex or settings.enable_commodities:
-            self._mt5 = MT5Client()
-            real = await self._mt5.initialize()
-            mode = "real MT5 terminal" if real else "MT5 simulator"
-            logger.info(f"BrokerClient: forex/commodities via {mode}")
-        else:
-            logger.info("BrokerClient: forex/commodities disabled")
-
-        # CCXT for crypto
-        self._ccxt = ExchangeClient()
-        await self._ccxt.initialize()
-        logger.info("BrokerClient: crypto via CCXT (paper mode)")
+        self._mt5 = MT5Client()
+        real = await self._mt5.initialize()
+        mode = "real MT5 terminal" if real else "MT5 simulator"
+        logger.info(f"BrokerClient: forex/commodities via {mode}")
 
         self._initialized = True
 
@@ -137,15 +124,13 @@ class BrokerClient:
         self, symbol: str, timeframe: str = "1h", limit: int = 300
     ) -> pd.DataFrame:
         """
-        Fetch OHLCV data for any symbol (crypto or forex/commodity).
+        Fetch OHLCV data for any symbol.
         Returns a validated DataFrame with columns [open, high, low, close, volume].
         """
         if not self._initialized:
             await self.initialize()
 
-        if is_forex_or_commodity(symbol):
-            return await self._fetch_forex_ohlcv(symbol, timeframe, limit)
-        return await self._fetch_crypto_ohlcv(symbol, timeframe, limit)
+        return await self._fetch_forex_ohlcv(symbol, timeframe, limit)
 
     async def _fetch_forex_ohlcv(
         self, symbol: str, timeframe: str, limit: int
@@ -153,18 +138,11 @@ class BrokerClient:
         if self._mt5 is None:
             raise RuntimeError("MT5 client not initialized — enable_forex must be True")
 
-        # Convert CCXT timeframe "1h" → MT5 "H1"
-        mt5_tf = CCXT_TO_MT5.get(timeframe, "H1")
+        # Convert MT5 timeframe "1h" → MT5 "H1"
+        mt5_tf = MT5_TO_MT5.get(timeframe, "H1")
         raw = await self._mt5.fetch_ohlcv(symbol, mt5_tf, limit)
         return self._raw_to_dataframe(raw)
 
-    async def _fetch_crypto_ohlcv(
-        self, symbol: str, timeframe: str, limit: int
-    ) -> pd.DataFrame:
-        if self._ccxt is None:
-            raise RuntimeError("CCXT client not initialized")
-        raw = await self._ccxt.fetch_ohlcv(symbol, timeframe, limit)
-        return self._raw_to_dataframe(raw)
 
     @staticmethod
     def _raw_to_dataframe(raw: List[List]) -> pd.DataFrame:
@@ -182,16 +160,8 @@ class BrokerClient:
         """Get current bid/ask/last for any symbol."""
         if not self._initialized:
             await self.initialize()
-        if is_forex_or_commodity(symbol) and self._mt5:
+        if self._mt5:
             return await self._mt5.fetch_tick(symbol)
-        # CCXT fallback
-        if self._ccxt:
-            try:
-                ticker = await self._ccxt.fetch_ticker(symbol)
-                return {"symbol": symbol, "bid": ticker.get("bid", 0),
-                        "ask": ticker.get("ask", 0), "last": ticker.get("last", 0)}
-            except Exception:
-                pass
         return {"symbol": symbol, "bid": 0, "ask": 0, "last": 0}
 
     # ── Order execution ────────────────────────────────────────────────────────
@@ -207,14 +177,11 @@ class BrokerClient:
         if not self._initialized:
             await self.initialize()
 
-        if is_forex_or_commodity(symbol) and self._mt5:
+        if self._mt5:
             lot = self._usd_to_lots(symbol, notional_usd)
             return await self._mt5.place_order(
                 symbol, side, lot, sl=stop_loss, tp=take_profit
             )
-        # Crypto path
-        if self._ccxt:
-            return await self._ccxt.place_order(symbol, side, notional_usd, stop_loss, take_profit)
         raise RuntimeError("No broker available for order placement")
 
     @staticmethod
@@ -239,10 +206,7 @@ class BrokerClient:
     # ── Account info ───────────────────────────────────────────────────────────
 
     async def get_account_info(self) -> dict:
-        if self._mt5 and (
-            (hasattr(self, '_settings') and getattr(self._settings, 'enable_forex', False))
-            or True  # always check if MT5 initialized
-        ):
+        if self._mt5:
             try:
                 return await self._mt5.get_account_info()
             except Exception:

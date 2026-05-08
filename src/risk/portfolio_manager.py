@@ -29,16 +29,12 @@ logger = get_logger(__name__)
 
 # ── Asset correlation matrix (empirical estimates) ────────────────────────────
 CORRELATION_MAP: Dict[Tuple[str, str], float] = {
-    ("BTC/USDT", "ETH/USDT"):  0.85,
-    ("BTC/USDT", "SOL/USDT"):  0.80,
-    ("BTC/USDT", "BNB/USDT"):  0.78,
-    ("ETH/USDT", "SOL/USDT"):  0.82,
-    ("ETH/USDT", "BNB/USDT"):  0.75,
-    ("SOL/USDT", "BNB/USDT"):  0.70,
-    ("EURUSD",   "GBPUSD"):    0.65,
-    ("EURUSD",   "AUDUSD"):    0.55,
-    ("XAUUSD",   "XAGUSD"):    0.72,
-    ("XAUUSD",   "EURUSD"):    0.40,
+    ("EURUSD", "GBPUSD"):  0.85,
+    ("EURUSD", "USDJPY"):  0.40,
+    ("EURUSD", "AUDUSD"):  0.78,
+    ("GBPUSD", "AUDUSD"):  0.75,
+    ("XAUUSD", "XAGUSD"):  0.88,
+    ("XAUUSD", "EURUSD"):  0.45,
 }
 
 
@@ -85,12 +81,13 @@ class PortfolioManager:
 
     # Asset class mapping
     SECTOR_MAP = {
-        "BTC/USDT": "crypto", "ETH/USDT": "crypto",
-        "SOL/USDT": "crypto", "BNB/USDT": "crypto",
-        "EURUSD":   "forex",  "GBPUSD":   "forex",
-        "USDJPY":   "forex",  "AUDUSD":   "forex",
-        "XAUUSD":   "commodity", "XAGUSD": "commodity",
-        "USOIL":    "commodity",
+        "EURUSD": "forex",
+        "GBPUSD": "forex",
+        "USDJPY": "forex",
+        "AUDUSD": "forex",
+        "XAUUSD": "commodity",
+        "XAGUSD": "commodity",
+        "USOIL":  "commodity",
     }
 
     def __init__(self, equity: float = 10_000.0):

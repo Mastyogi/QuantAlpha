@@ -285,10 +285,10 @@ class MarketRegimeDetector:
         if vol_regime == "low" and atr_pct < self.atr_dead_pct:
             return Regime.DEAD, 0.90, f"Volume low + ATR={atr_pct:.3%} < {self.atr_dead_pct:.3%}"
         
-        # Priority 3: TRENDING — ADX > 25 AND slope > 0 (rising)
-        if adx > self.adx_trending_min and adx_slope > 0:
+        # Priority 3: TRENDING — ADX > 25 AND slope >= 0 (rising or maxed)
+        if adx > self.adx_trending_min and adx_slope >= 0:
             conf = min(0.95, 0.70 + (adx - self.adx_trending_min) * 0.01 + adx_slope * 0.02)
-            return Regime.TRENDING, conf, f"ADX={adx:.1f} > {self.adx_trending_min} + rising slope={adx_slope:+.1f}"
+            return Regime.TRENDING, conf, f"ADX={adx:.1f} > {self.adx_trending_min} + slope={adx_slope:+.1f}"
         
         # Priority 4: BREAKOUT — BB width < 1.5% AND ADX rising from below 20
         if bb_squeeze and adx < 20 and adx_slope > 1.0:

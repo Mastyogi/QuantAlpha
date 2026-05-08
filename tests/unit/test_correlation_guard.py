@@ -20,18 +20,18 @@ def adaptive_risk():
 def mock_correlation_matrix():
     """Mock correlation matrix."""
     return {
-        "BTCUSDT": {
-            "ETHUSDT": 0.85,
+        "EURUSD": {
+            "GBPUSD": 0.85,
             "BNBUSDT": 0.75,
             "ADAUSDT": 0.60,
         },
-        "ETHUSDT": {
-            "BTCUSDT": 0.85,
+        "GBPUSD": {
+            "EURUSD": 0.85,
             "BNBUSDT": 0.80,
         },
         "BNBUSDT": {
-            "BTCUSDT": 0.75,
-            "ETHUSDT": 0.80,
+            "EURUSD": 0.75,
+            "GBPUSD": 0.80,
         }
     }
 
@@ -40,7 +40,7 @@ def mock_correlation_matrix():
 async def test_no_open_positions(adaptive_risk):
     """Test correlation guard with no open positions."""
     result = await adaptive_risk.check_correlation_guard(
-        symbol="BTC/USDT",
+        symbol="EURUSD",
         open_positions=[],
     )
     
@@ -52,12 +52,12 @@ async def test_no_open_positions(adaptive_risk):
 @pytest.mark.asyncio
 async def test_high_correlation_blocks_trade(adaptive_risk, mock_correlation_matrix):
     """Test that high correlation (>90%) blocks trade."""
-    open_positions = [{"symbol": "ETH/USDT"}]
+    open_positions = [{"symbol": "GBPUSD"}]
     
     # Mock correlation matrix with very high correlation
     high_corr_matrix = {
-        "BTCUSDT": {"ETHUSDT": 0.95},
-        "ETHUSDT": {"BTCUSDT": 0.95}
+        "EURUSD": {"GBPUSD": 0.95},
+        "GBPUSD": {"EURUSD": 0.95}
     }
     
     with patch.object(adaptive_risk, '_get_redis') as mock_redis:
@@ -66,7 +66,7 @@ async def test_high_correlation_blocks_trade(adaptive_risk, mock_correlation_mat
         mock_redis.return_value = mock_client
         
         result = await adaptive_risk.check_correlation_guard(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             open_positions=open_positions,
         )
         
@@ -78,7 +78,7 @@ async def test_high_correlation_blocks_trade(adaptive_risk, mock_correlation_mat
 @pytest.mark.asyncio
 async def test_moderate_correlation_reduces_size(adaptive_risk, mock_correlation_matrix):
     """Test that moderate correlation (70-90%) reduces position size."""
-    open_positions = [{"symbol": "ETH/USDT"}]
+    open_positions = [{"symbol": "GBPUSD"}]
     
     with patch.object(adaptive_risk, '_get_redis') as mock_redis:
         mock_client = AsyncMock()
@@ -86,7 +86,7 @@ async def test_moderate_correlation_reduces_size(adaptive_risk, mock_correlation
         mock_redis.return_value = mock_client
         
         result = await adaptive_risk.check_correlation_guard(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             open_positions=open_positions,
         )
         
@@ -106,7 +106,7 @@ async def test_low_correlation_allows_full_size(adaptive_risk, mock_correlation_
         mock_redis.return_value = mock_client
         
         result = await adaptive_risk.check_correlation_guard(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             open_positions=open_positions,
         )
         
@@ -118,11 +118,11 @@ async def test_low_correlation_allows_full_size(adaptive_risk, mock_correlation_
 @pytest.mark.asyncio
 async def test_redis_unavailable_failsafe(adaptive_risk):
     """Test fail-safe behavior when Redis is unavailable."""
-    open_positions = [{"symbol": "ETH/USDT"}]
+    open_positions = [{"symbol": "GBPUSD"}]
     
     with patch.object(adaptive_risk, '_get_redis', return_value=None):
         result = await adaptive_risk.check_correlation_guard(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             open_positions=open_positions,
         )
         
@@ -135,7 +135,7 @@ async def test_redis_unavailable_failsafe(adaptive_risk):
 @pytest.mark.asyncio
 async def test_correlation_matrix_not_found(adaptive_risk):
     """Test behavior when correlation matrix is not in Redis."""
-    open_positions = [{"symbol": "ETH/USDT"}]
+    open_positions = [{"symbol": "GBPUSD"}]
     
     with patch.object(adaptive_risk, '_get_redis') as mock_redis:
         mock_client = AsyncMock()
@@ -143,7 +143,7 @@ async def test_correlation_matrix_not_found(adaptive_risk):
         mock_redis.return_value = mock_client
         
         result = await adaptive_risk.check_correlation_guard(
-            symbol="BTC/USDT",
+            symbol="EURUSD",
             open_positions=open_positions,
         )
         

@@ -27,43 +27,43 @@ class TestInvalidData:
             validator.validate_and_clean(df)
 
     def test_invalid_symbol_rejected(self):
-        assert not validate_symbol("BTCUSDT")  # Missing slash
+        assert not validate_symbol("EURUSD")  # Missing slash
         assert not validate_symbol("")
         assert not validate_symbol("BT/")
-        assert validate_symbol("BTC/USDT")
+        assert validate_symbol("EURUSD")
 
     def test_invalid_trade_buy_sl_above_entry(self):
         valid, msg = validate_trade_params(
-            "BTC/USDT", "buy", 200, 45000, 46000, 47000
+            "EURUSD", "buy", 200, 45000, 46000, 47000
         )
         assert not valid
 
     def test_invalid_trade_sell_tp_above_entry(self):
         valid, msg = validate_trade_params(
-            "BTC/USDT", "sell", 200, 45000, 46000, 46000
+            "EURUSD", "sell", 200, 45000, 46000, 46000
         )
         assert not valid
 
     def test_invalid_side(self):
         valid, msg = validate_trade_params(
-            "BTC/USDT", "long", 200, 45000, 44000, 47000
+            "EURUSD", "long", 200, 45000, 44000, 47000
         )
         assert not valid
 
     def test_negative_size_rejected(self):
         valid, msg = validate_trade_params(
-            "BTC/USDT", "buy", -100, 45000, 44000, 47000
+            "EURUSD", "buy", -100, 45000, 44000, 47000
         )
         assert not valid
 
     def test_valid_buy_trade_accepted(self):
         valid, msg = validate_trade_params(
-            "BTC/USDT", "buy", 200, 45000, 44000, 47000
+            "EURUSD", "buy", 200, 45000, 44000, 47000
         )
         assert valid
 
     def test_valid_sell_trade_accepted(self):
         valid, msg = validate_trade_params(
-            "ETH/USDT", "sell", 100, 2500, 2600, 2200
+            "GBPUSD", "sell", 100, 2500, 2600, 2200
         )
         assert valid

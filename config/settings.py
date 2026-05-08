@@ -43,7 +43,7 @@ class TradingBotSettings:
         # ── Exchange (Crypto) ──────────────────────────────────────────────────
         self.exchange_name          = _env("EXCHANGE_NAME", "paper")
         self.exchange_api_key       = _env("EXCHANGE_API_KEY", "")
-        self.exchange_secret        = _env("EXCHANGE_SECRET", "")          # Bitget uses EXCHANGE_SECRET
+        self.exchange_secret        = _env("EXCHANGE_SECRET", "")          # FxPro uses EXCHANGE_SECRET
         self.exchange_api_secret    = _env("EXCHANGE_API_SECRET", self.exchange_secret)
         self.exchange_passphrase    = _env("EXCHANGE_PASSPHRASE", "")
         self.exchange_testnet       = _env_bool("EXCHANGE_TESTNET", False)
@@ -80,7 +80,7 @@ class TradingBotSettings:
         self.secret_key             = _env("SECRET_KEY", "quantalpha-default-secret-key-32b")
 
         # ── Instrument Lists ──────────────────────────────────────────────────
-        self.trading_pairs          = _env_list("TRADING_PAIRS", "BTC/USDT,ETH/USDT")
+        self.trading_pairs          = _env_list("TRADING_PAIRS", "EURUSD,GBPUSD")
         self.forex_pairs            = _env_list("FOREX_PAIRS",   "EURUSD,GBPUSD,USDJPY")
         self.commodity_pairs        = _env_list("COMMODITY_PAIRS","XAUUSD,XAGUSD,USOIL")
         self.enable_forex           = _env_bool("ENABLE_FOREX", False)
@@ -141,7 +141,7 @@ class TradingBotSettings:
         if self.trading_mode not in ("paper", "live"):
             raise ValueError("trading_mode must be paper or live")
         if not self.trading_pairs:
-            self.trading_pairs = ["BTC/USDT", "ETH/USDT"]
+            self.trading_pairs = ["EURUSD", "GBPUSD"]
 
     @property
     def all_instruments(self):

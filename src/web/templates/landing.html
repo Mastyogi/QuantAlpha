@@ -400,23 +400,23 @@
 <!-- Live ticker bar -->
 <div class="ticker-bar">
   <div class="ticker-scroll" id="tickerScroll">
-    <span class="ticker-item"><span class="sym">BTC/USDT</span> <span class="up">▲ 43,820.50  +1.24%</span></span>
-    <span class="ticker-item"><span class="sym">ETH/USDT</span> <span class="up">▲ 2,318.40  +0.87%</span></span>
+    <span class="ticker-item"><span class="sym">EURUSD</span> <span class="up">▲ 43,820.50  +1.24%</span></span>
+    <span class="ticker-item"><span class="sym">GBPUSD</span> <span class="up">▲ 2,318.40  +0.87%</span></span>
     <span class="ticker-item"><span class="sym">EUR/USD</span> <span class="dn">▼ 1.0847  -0.12%</span></span>
     <span class="ticker-item"><span class="sym">GBP/USD</span> <span class="up">▲ 1.2654  +0.18%</span></span>
     <span class="ticker-item"><span class="sym">XAU/USD</span> <span class="up">▲ 2,031.80  +0.34%</span></span>
     <span class="ticker-item"><span class="sym">USD/JPY</span> <span class="dn">▼ 149.32  -0.21%</span></span>
-    <span class="ticker-item"><span class="sym">SOL/USDT</span> <span class="up">▲ 98.24  +3.41%</span></span>
+    <span class="ticker-item"><span class="sym">USDJPY</span> <span class="up">▲ 98.24  +3.41%</span></span>
     <span class="ticker-item"><span class="sym">XAG/USD</span> <span class="dn">▼ 22.74  -0.48%</span></span>
     <span class="ticker-item"><span class="sym">WTI OIL</span> <span class="up">▲ 78.65  +0.92%</span></span>
     <!-- duplicate for seamless loop -->
-    <span class="ticker-item"><span class="sym">BTC/USDT</span> <span class="up">▲ 43,820.50  +1.24%</span></span>
-    <span class="ticker-item"><span class="sym">ETH/USDT</span> <span class="up">▲ 2,318.40  +0.87%</span></span>
+    <span class="ticker-item"><span class="sym">EURUSD</span> <span class="up">▲ 43,820.50  +1.24%</span></span>
+    <span class="ticker-item"><span class="sym">GBPUSD</span> <span class="up">▲ 2,318.40  +0.87%</span></span>
     <span class="ticker-item"><span class="sym">EUR/USD</span> <span class="dn">▼ 1.0847  -0.12%</span></span>
     <span class="ticker-item"><span class="sym">GBP/USD</span> <span class="up">▲ 1.2654  +0.18%</span></span>
     <span class="ticker-item"><span class="sym">XAU/USD</span> <span class="up">▲ 2,031.80  +0.34%</span></span>
     <span class="ticker-item"><span class="sym">USD/JPY</span> <span class="dn">▼ 149.32  -0.21%</span></span>
-    <span class="ticker-item"><span class="sym">SOL/USDT</span> <span class="up">▲ 98.24  +3.41%</span></span>
+    <span class="ticker-item"><span class="sym">USDJPY</span> <span class="up">▲ 98.24  +3.41%</span></span>
     <span class="ticker-item"><span class="sym">WTI OIL</span> <span class="up">▲ 78.65  +0.92%</span></span>
   </div>
 </div>
@@ -455,7 +455,7 @@
   <!-- Mini chart -->
   <div class="chart-preview">
     <div class="chart-header">
-      <span class="chart-title">BTC/USDT — Live Simulation</span>
+      <span class="chart-title">EURUSD — Live Simulation</span>
       <span class="chart-badge">● LIVE</span>
     </div>
     <canvas id="miniChart"></canvas>
@@ -505,8 +505,8 @@
   <h2 class="section-title">Supported <span style="color:var(--accent2)">Markets</span></h2>
   <p class="section-sub">One bot, three asset classes, unlimited opportunities</p>
   <div class="markets-grid">
-    <div class="market-card"><div class="market-flag">₿</div><div class="market-info"><h4>BTC/USDT</h4><p>Bitcoin</p></div><div class="market-badge">LIVE</div></div>
-    <div class="market-card"><div class="market-flag">Ξ</div><div class="market-info"><h4>ETH/USDT</h4><p>Ethereum</p></div><div class="market-badge">LIVE</div></div>
+    <div class="market-card"><div class="market-flag">₿</div><div class="market-info"><h4>EURUSD</h4><p>Bitcoin</p></div><div class="market-badge">LIVE</div></div>
+    <div class="market-card"><div class="market-flag">Ξ</div><div class="market-info"><h4>GBPUSD</h4><p>Ethereum</p></div><div class="market-badge">LIVE</div></div>
     <div class="market-card"><div class="market-flag">🇪🇺</div><div class="market-info"><h4>EUR/USD</h4><p>Euro/Dollar</p></div><div class="market-badge">MT5</div></div>
     <div class="market-card"><div class="market-flag">🇬🇧</div><div class="market-info"><h4>GBP/USD</h4><p>Pound/Dollar</p></div><div class="market-badge">MT5</div></div>
     <div class="market-card"><div class="market-flag">🥇</div><div class="market-info"><h4>XAU/USD</h4><p>Gold</p></div><div class="market-badge">MT5</div></div>
@@ -521,11 +521,11 @@
   <h2 class="section-title">How It <span style="color:var(--accent)">Works</span></h2>
   <p class="section-sub">From raw market data to executed trade in milliseconds</p>
   <div class="steps-grid">
-    <div class="step-card"><div class="step-num">1</div><h3>Data Ingestion</h3><p>OHLCV candles fetched every hour from CCXT (crypto) or MT5 simulator (forex/commodities), validated and cleaned.</p></div>
+    <div class="step-card"><div class="step-num">1</div><h3>Data Ingestion</h3><p>OHLCV candles fetched every hour from MT5 (crypto) or MT5 simulator (forex/commodities), validated and cleaned.</p></div>
     <div class="step-card"><div class="step-num">2</div><h3>Indicator Computation</h3><p>20+ technical indicators computed: EMA crossovers, RSI divergence, MACD histogram, Bollinger squeeze and more.</p></div>
     <div class="step-card"><div class="step-num">3</div><h3>AI Prediction</h3><p>23-feature vector fed to XGBoost ensemble. Confidence score ≥ 70% required to pass to risk engine.</p></div>
     <div class="step-card"><div class="step-num">4</div><h3>Risk Validation</h3><p>7-layer risk check: position size ≤ 2%, R:R ≥ 1.5:1, circuit breakers, daily loss limits enforced.</p></div>
-    <div class="step-card"><div class="step-num">5</div><h3>Order Execution</h3><p>Paper or live order placed via CCXT / MT5. Stop-loss and take-profit levels set automatically.</p></div>
+    <div class="step-card"><div class="step-num">5</div><h3>Order Execution</h3><p>Paper or live order placed via MT5 / MT5. Stop-loss and take-profit levels set automatically.</p></div>
     <div class="step-card"><div class="step-num">6</div><h3>Telegram Alert</h3><p>Signal details, entry/exit prices, P&amp;L, and equity curve sent to your Telegram in real time.</p></div>
   </div>
 </section>

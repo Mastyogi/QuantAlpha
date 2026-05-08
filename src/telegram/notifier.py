@@ -357,7 +357,12 @@ class TelegramNotifier:
         color = colors.get(level.upper(), "")
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
         clean = text.replace("*", "").replace("`", "").replace("━", "—")[:300]
-        print(f"{color}[{ts}] [{level}] {clean}{reset}")
+        try:
+            print(f"{color}[{ts}] [{level}] {clean}{reset}")
+        except UnicodeEncodeError:
+            # Fallback for Windows console with limited encoding
+            safe_text = clean.encode("ascii", "ignore").decode("ascii")
+            print(f"{color}[{ts}] [{level}] {safe_text}{reset}")
 
     def _signal_keyboard(self, symbol: str, direction: str):
         if not TELEGRAM_OK:
