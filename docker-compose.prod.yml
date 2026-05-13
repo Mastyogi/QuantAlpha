@@ -1,26 +1,71 @@
-version: '3.8'
+# ============================================================
+# QuantAlpha Docker Compose - Production Ready
+# ============================================================
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: quantalpha-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: trading_bot
+      POSTGRES_USER: botuser
+      POSTGRES_PASSWORD: changeme123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - quantalpha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U botuser -d trading_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: quantalpha-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - quantalpha-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   quantalpha-bot:
     build:
       context: .
       dockerfile: Dockerfile
+    image: quantalpha-bot:latest
     container_name: quantalpha-trading-bot
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://botuser:changeme123@postgres:5432/trading_bot
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./logs:/app/logs
       - ./models:/app/models
       - ./reports:/app/reports
+      - ./data:/app/data
     networks:
       - quantalpha-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     logging:
       driver: "json-file"
       options:
@@ -32,6 +77,9 @@ networks:
     driver: bridge
 
 volumes:
+  postgres_data:
+  redis_data:
   logs:
   models:
   reports:
+  data:
